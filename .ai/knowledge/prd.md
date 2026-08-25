@@ -2,7 +2,7 @@
 
 ## Latar Belakang
 
-Banyak merchant fashion wanita di Indonesia yang bergantung sepenuhnya pada marketplace seperti Shopee atau Tokopedia. Ketergantungan ini menciptakan tantangan bisnis: biaya komisi tinggi per transaksi, persaingan harga yang mengerikkan margin, keterbatasan branding (toko terlihat sama dengan ribuan toko lain), dan tidak punya akses penuh ke data pelanggan sendiri. Merchant butuh saluran jual mandiri yang memberikan kontrol penuh atas harga, branding, hubungan pelanggan, dan data — tanpa harus membangun tim teknis internal yang mahal. Platform ini hadir sebagai solusi "toko online sendiri" yang siap pakai, dengan integrasi pembayaran lokal (Midtrans) dan desain yang memperkuat identitas brand fashion wanita, sehingga merchant bisa fokus menjual sambil membangun aset bisnis jangka panjang: basis pelanggan sendiri.
+Banyak merchant fashion wanita di Indonesia yang bergantung sepenuhnya pada marketplace seperti Shopee atau Tokopedia. Ketergantungan ini menciptakan tantangan bisnis: biaya komisi tinggi per transaksi, persaingan harga mengerikkan margin, keterbatasan branding (toko terlihat sama dengan ribuan toko lain), dan tidak punya akses penuh ke data pelanggan sendiri. Merchant butuh saluran jual mandiri yang memberikan kontrol penuh atas harga, branding, hubungan pelanggan, dan data — tanpa harus membangun tim teknis internal yang mahal. Platform ini hadir sebagai solusi "toko online sendiri" yang siap pakai — dirancang untuk **multi-merchant** sehingga setiap pedagang bisa memiliki toko sendiri di dalam satu platform, dengan integrasi pembayaran lokal (Midtrans) dan desain yang memperkuat identitas brand fashion wanita, sehingga merchant bisa fokus menjual sambil membangun aset bisnis jangka panjang: basis pelanggan sendiri.
 
 ## User Stories
 
@@ -12,11 +12,17 @@ Banyak merchant fashion wanita di Indonesia yang bergantung sepenuhnya pada mark
 4. Sebagai **merchant**, saya ingin menerima pembayaran via transfer bank, e-wallet, dan virtual account (Midtrans), agar menutupi preferensi bayar mayoritas pembeli Indonesia.
 5. Sebagai **merchant**, saya ingin melihat daftar pesanan masuk, status pembayaran, dan detail pengiriman di satu halaman, agar tidak perlu bolak-balik antar aplikasi.
 6. Sebagai **pembeli**, saya ingin menjelajahi katalog, melihat detail produk dengan foto jelas, memilih varian, dan checkout lancar di HP maupun laptop, agar nyaman belanja kapan saja.
-6. Sebagai **pembeli**, saya ingin mendapat notifikasi otomatis saat pesanan dibayar, dikemas, dan dikirim, agar tahu status tanpa perlu chat admin.
-7. Sebagai **merchant**, saya ingin data pelanggan (nama, kontak, riwayat belanja) tersimpan di sistem saya, agar bisa melakukan retargeting, program loyalitas, atau promosi langsung ke pelanggan lama.
-8. Sebagai **merchant**, saya ingin halaman toko terlihat profesional dan estetik fashion (bersih, hangat, "enak dipandang"), agar membangun kepercayaan brand sejak pertama kali dikunjungi.
+7. Sebagai **pembeli**, saya ingin mendapat notifikasi otomatis saat pesanan dibayar, dikemas, dan dikirim, agar tahu status tanpa perlu chat admin.
+8. Sebagai **merchant**, saya ingin data pelanggan (nama, kontak, riwayat belanja) tersimpan di sistem saya, agar bisa melakukan retargeting, program loyalitas, atau promosi langsung ke pelanggan lama.
+9. Sebagai **merchant**, saya ingin halaman toko terlihat profesional dan estetik fashion (bersih, hangat, "enak dipandang"), agar membangun kepercayaan brand sejak pertama kali dikunjungi.
+10. Sebagai **merchant**, saya ingin dashboard khusus untuk mengelola produk, pesanan, dan pelanggan dari satu tempat, agar tidak perlu menggunakan banyak aplikasi terpisah.
 
 ## Fitur Wajib (Must Have)
+
+### 0. Area Merchant (Dashboard)
+- Halaman ringkas: pesanan masuk hari ini, notifikasi, akses cepat ke aksi utama.
+- Akses terpisah dari storefront — hanya merchant yang login yang bisa masuk.
+- Satu tempat untuk: kelola produk, kelola pesanan, lihat data pelanggan, ubah pengaturan toko.
 
 ### 1. Manajemen Katalog Produk
 - Tambah, edit, hapus produk dengan foto multiple, deskripsi, kategori, dan varian (ukuran, warna, dll).
@@ -27,6 +33,7 @@ Banyak merchant fashion wanita di Indonesia yang bergantung sepenuhnya pada mark
 - Halaman beranda: hero banner, produk unggulan, kategori populer.
 - Halaman katalog: filter kategori, urutkan (terbaru, harga terendah/tertinggi), pencarian nama produk.
 - Halaman detail produk: galeri foto zoom, pilihan varian, info stok real-time, tombol "Tambah ke Keranjang", deskripsi lengkap, ulasan pembeli (jika ada).
+- Wishlist / Simpan untuk Nanti di halaman detail produk.
 - Desain mobile-first, estetik fashion wanita (warna netral hangat, tipografi elegan, claymorphism accent pada kartu produk & tombol aksi).
 
 ### 3. Keranjang & Checkout
@@ -67,14 +74,19 @@ Banyak merchant fashion wanita di Indonesia yang bergantung sepenuhnya pada mark
 
 1. **Kode Promo / Diskon**: Kode unik, persentase/nominal, syarat minimum belanja, batas penggunaan, tanggal kadaluarsa.
 2. **Program Poin Loyalitas**: Poin per belanja, tukar poin jadi potongan harga.
-3. **Ulasan Produk**: Pembeli kasih rating + komentar setelah pesanan selesai, tampil di halaman produk.
-4. **Wishlist / Simpan untuk Nanti**: Pembeli simpan produk favorit tanpa beli langsung.
-5. **Multi-kurir Otomatis**: Integrasi cek ongkir real-time (JNE, J&T, SiCepat, dll) saat checkout.
-6. **Dashboard Ringkas**: Grafik penjualan harian/bulanan, produk terlaris, nilai rata-rata transaksi (AOV).
-7. **Mode "Catalog Only" (Tanpa Checkout)**: Untuk merchant yang mau tampilin produk tapi transaksi lewat WA/direct — toggle on/off.
-8. **Aplikasi Mobile Merchant (React Native)**: Terima notifikasi pesanan baru, ubah status pesanan, cek stok cepat dari HP.
-9. **Domain Custom & SSL**: Merchant pakai domain sendiri (toko.brandku.com) dengan SSL otomatis.
-10. **Integrasi WhatsApp Business API**: Kirim notifikasi & broadcast promosi lewat WA resmi.
+3. **Multi-kurir Otomatis**: Integrasi cek ongkir real-time (JNE, J&T, SiCepat, dll) saat checkout.
+4. **Dashboard Ringkas**: Grafik penjualan harian/bulanan, produk terlaris, nilai rata-rata transaksi (AOV).
+5. **Mode "Catalog Only" (Tanpa Checkout)**: Untuk merchant yang mau tampilin produk tapi transaksi lewat WA/direct — toggle on/off.
+6. **Aplikasi Mobile Merchant (React Native)**: Terima notifikasi pesanan baru, ubah status pesanan, cek stok cepat dari HP.
+7. **Domain Custom & SSL**: Merchant pakai domain sendiri (toko.brandku.com) dengan SSL otomatis.
+8. **Integrasi WhatsApp Business API**: Kirim notifikasi & broadcast promosi lewat WA resmi.
+
+## Out of Scope
+
+- Admin dashboard multi-admin (hanya satu merchant per toko)
+- Multi-currency / multi-bahasa
+- Sistem inventaris fisik / warehouse management
+- Marketplace builder (platform ini untuk merchant mandiri, bukan untuk bikin marketplace)
 
 ## Kriteria Sukses
 
@@ -91,7 +103,8 @@ Banyak merchant fashion wanita di Indonesia yang bergantung sepenuhnya pada mark
 | Versi | Tanggal | Perubahan | Diminta oleh |
 |-------|---------|-----------|--------------|
 | v1 | 2025-08-25 | Draft awal: PRD untuk platform e-commerce mandiri fashion wanita (bukan dummy project), niche modest fashion/general women fashion, payment Midtrans, fokus merchant lepas dari marketplace | User |
+| v2 | 2025-08-25 | Tambah konteks multi-merchant di Latar Belakang; tambah User Story #10 (Merchant Dashboard); tambah Fitur Wajib "Area Merchant"; geser Ulasan & Wishlist dari Nice to Have ke Must Have (di storefront); tambah section Out of Scope; koreksi nomor urut duplikat | User + Architect Discussion |
 
 ---
 
-**Mohon review dan beri persetujuan (Approve) sebelum saya lanjutkan ke tahap desain teknis (Architect).**
+**PRD v2 telah di-freeze. Silakan panggil Architect untuk melanjutkan ke tahap desain teknis (SSOT/Database Design).**
