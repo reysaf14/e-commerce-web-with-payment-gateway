@@ -19,8 +19,9 @@ def home_view(request):
     store = _get_store()
     if not store:
         return render(request, "store/empty_home.html")
-    products = Product.objects.filter(store=store, is_active=True)[:12]
+    products = Product.objects.filter(store=store, is_active=True)
     featured = products.filter(is_featured=True)[:4]
+    products = products[:12]
     return render(request, "store/home.html", {
         "store": store,
         "products": products,
