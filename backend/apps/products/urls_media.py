@@ -1,4 +1,3 @@
-"""Media upload URLs."""
-from django.urls import path
+"""Media URLs — handled in urls.py via router."""
 
 urlpatterns = []
