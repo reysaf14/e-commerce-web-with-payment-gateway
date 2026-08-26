@@ -1,5 +1,7 @@
 """Review & Wishlist views."""
 
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -10,6 +12,7 @@ from .serializers import ReviewSerializer, WishlistSerializer
 
 # ── Reviews ───────────────────────────────────────────────
 
+@method_decorator(csrf_exempt, name="dispatch")
 class ReviewListCreateView(generics.ListCreateAPIView):
     serializer_class = ReviewSerializer
     permission_classes = [permissions.AllowAny]
@@ -33,6 +36,7 @@ def _get_session_id(request):
     return sid
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class WishlistListView(generics.ListAPIView):
     serializer_class = WishlistSerializer
     permission_classes = [permissions.AllowAny]
