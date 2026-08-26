@@ -7,14 +7,19 @@
 <section class="section">
   <div class="container container--narrow">
     <div class="text-center mb-8">
-      <div style="font-size:3rem;">✅</div>
-      <h2>Pesanan Berhasil Dibuat!</h2>
+      <div style="font-size:3rem;">{% if order.payment_status == "paid" %}✅{% else %}⏳{% endif %}</div>
+      <h2>{% if order.payment_status == "paid" %}Pembayaran Berhasil!{% else %}Pesanan Dibuat!{% endif %}</h2>
       <p class="text-muted mt-2">Nomor pesanan: <strong>{{ order.order_number }}</strong></p>
     </div>
 
     <div style="background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-clay);padding:var(--space-6);">
       <h3 style="margin-bottom:var(--space-4);">Detail Pesanan</h3>
-      <div class="flex justify-between mb-2"><span class="text-muted">Status</span><span>{{ order.get_status_display }}</span></div>
+      <div class="flex justify-between mb-2"><span class="text-muted">Status Pesanan</span><span>{{ order.get_status_display }}</span></div>
+      <div class="flex justify-between mb-2"><span class="text-muted">Status Pembayaran</span>
+        <span style="color:{% if order.payment_status == 'paid' %}var(--success){% elif order.payment_status == 'pending' %}var(--warning){% else %}var(--danger){% endif %};font-weight:600;">
+          {{ order.get_payment_status_display }}
+        </span>
+      </div>
       <div class="flex justify-between mb-2"><span class="text-muted">Subtotal</span><span>Rp {{ order.subtotal|floatformat:0 }}</span></div>
       <div class="flex justify-between mb-2"><span class="text-muted">Ongkir</span><span>Rp {{ order.shipping_cost|floatformat:0 }}</span></div>
       <div class="flex justify-between" style="font-weight:700;font-size:var(--text-lg);"><span>Total</span><span style="color:var(--accent-primary);">Rp {{ order.total_amount|floatformat:0 }}</span></div>
@@ -39,9 +44,93 @@
       </div>
     </div>
 
+    <!-- Payment Section -->
+    {% if order.payment_status == "pending" %}
+    <div id="payment-section" style="background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-clay);padding:var(--space-6);margin-top:var(--space-6);text-align:center;">
+      <h3 style="margin-bottom:var(--space-3);">💳 Pembayaran</h3>
+      <p class="text-muted mb-4" style="font-size:var(--text-sm);">Selesaikan pembayaran dalam 24 jam. Setelah itu pesanan otomatis dibatalkan.</p>
+      <button class="btn btn--primary btn--lg" id="pay-btn" onclick="startPayment()">
+        Bayar Sekarang
+      </button>
+      <div id="payment-error" class="hidden mt-4" style="color:var(--danger);font-size:var(--text-sm);"></div>
+    </div>
+    {% endif %}
+
     <div class="text-center mt-6">
       <a href="{% url 'store-catalog' %}" class="btn btn--primary">← Lanjut Belanja</a>
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+{% if order.payment_status == "pending" %}
+<script src="{{ snap_url }}"></script>
+<script>
+  const SNAP_TOKEN = "{{ snap_token|default:'' }}";
+  const ORDER_NUMBER = "{{ order.order_number }}";
+
+  async function startPayment() {
+    const btn = document.getElementById("pay-btn");
+    const errDiv = document.getElementById("payment-error");
+    btn.disabled = true;
+    btn.textContent = "Memproses...";
+    errDiv.classList.add("hidden");
+
+    try {
+      let token = SNAP_TOKEN;
+      if (!token) {
+        const res = await fetch("/api/v1/payments/create/", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({order_number: ORDER_NUMBER})
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Gagal membuat pembayaran");
+        token = data.snap_token;
+      }
+
+      // Open Midtrans Snap popup
+      window.snap.pay(token, {
+        onSuccess: function(result) {
+          window.location.reload();
+        },
+        onPending: function(result) {
+          window.location.reload();
+        },
+        onError: function(result) {
+          errDiv.textContent = "Pembayaran gagal. Silakan coba lagi.";
+          errDiv.classList.remove("hidden");
+          btn.disabled = false;
+          btn.textContent = "Bayar Sekarang";
+        },
+        onClose: function() {
+          btn.disabled = false;
+          btn.textContent = "Bayar Sekarang";
+        }
+      });
+    } catch (err) {
+      errDiv.textContent = err.message;
+      errDiv.classList.remove("hidden");
+      btn.disabled = false;
+      btn.textContent = "Bayar Sekarang";
+    }
+  }
+
+  // Auto-check status every 10 seconds for 2 minutes
+  let checkCount = 0;
+  const checkInterval = setInterval(async () => {
+    checkCount++;
+    if (checkCount > 12) { clearInterval(checkInterval); return; }
+    try {
+      const res = await fetch(`/api/v1/payments/${ORDER_NUMBER}/status/`);
+      const data = await res.json();
+      if (data.payment_status === "paid") {
+        clearInterval(checkInterval);
+        window.location.reload();
+      }
+    } catch (e) { /* retry */ }
+  }, 10000);
+</script>
+{% endif %}
 {% endblock %}
