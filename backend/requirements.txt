@@ -1,0 +1,18 @@
+# Django & Backend
+Django>=4.2,<5.1
+djangorestframework>=3.14,<4.0
+djangorestframework-simplejwt>=5.3,<6.0
+django-environ>=0.11,<1.0
+django-cors-headers>=4.3,<5.0
+
+# Database
+mysqlclient>=2.2,<3.0
+
+# Image Processing
+Pillow>=10.0,<11.0
+
+# Payment Gateway
+requests>=2.31,<3.0
+
+# Utilities
+python-slugify>=8.0,<9.0
