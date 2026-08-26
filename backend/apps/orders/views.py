@@ -1,9 +1,10 @@
 """Order views — checkout + merchant order management."""
 
+from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from django.db import transaction
 from .models import Order, OrderItem
 from .serializers import OrderSerializer, CheckoutSerializer
 from apps.customers.models import Customer
@@ -12,6 +13,7 @@ from apps.notifications.services import create_notification
 
 # ── Checkout ──────────────────────────────────────────────
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def checkout_view(request):
