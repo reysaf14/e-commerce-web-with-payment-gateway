@@ -1,15 +1,16 @@
 """Payment views — create payment + webhook handler."""
 
 import hashlib
-import hmac
 import json
 from django.conf import settings
 from django.db import transaction
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
-from apps.orders.models import Order, Order
+from apps.orders.models import Order
 from apps.products.models import Variant
 from apps.notifications.services import create_notification
 from .models import Payment
@@ -17,6 +18,7 @@ from .serializers import PaymentSerializer
 from . import services as midtrans_service
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def create_payment(request):
@@ -81,6 +83,7 @@ def create_payment(request):
         return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
 
+@csrf_exempt
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def webhook_view(request):
