@@ -16,4 +16,5 @@ urlpatterns = [
     path("categories/", views.categories_list, name="dash-categories"),
     path("categories/<int:category_id>/delete/", views.category_delete, name="dash-category-delete"),
     path("settings/", views.settings_view, name="dash-settings"),
+    path("customers/", views.customers_list, name="dash-customers"),
 ]

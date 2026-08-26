@@ -12,6 +12,7 @@ from apps.store.models import StoreSettings
 from apps.products.models import Product, Category, ProductImage
 from apps.orders.models import Order, OrderItem
 from apps.payments.models import Payment
+from apps.customers.models import Customer
 from .forms import ProductForm, StoreSettingsForm
 
 
@@ -197,4 +198,15 @@ def settings_view(request):
         form = StoreSettingsForm(instance=store)
     return render(request, "dashboard/settings.html", {
         "store": store, "active": "settings", "form": form,
+    })
+
+
+# ── Customers ─────────────────────────────────────────────
+
+@login_required(login_url="/dashboard/login/")
+def customers_list(request):
+    store = _get_store(request.user)
+    customers = Customer.objects.filter(store=store)
+    return render(request, "dashboard/customers.html", {
+        "store": store, "active": "customers", "customers": customers,
     })
