@@ -1,8 +1,9 @@
 """Cart views."""
 
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from django.db import transaction
 from .models import Cart, CartItem
 from .serializers import CartSerializer, CartItemSerializer
 
@@ -16,6 +17,7 @@ def _get_or_create_cart(request):
     return cart
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class CartView(generics.RetrieveDestroyAPIView):
     serializer_class = CartSerializer
     permission_classes = [permissions.AllowAny]
@@ -30,6 +32,7 @@ class CartView(generics.RetrieveDestroyAPIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class AddCartItemView(generics.CreateAPIView):
     serializer_class = CartItemSerializer
     permission_classes = [permissions.AllowAny]
@@ -39,7 +42,6 @@ class AddCartItemView(generics.CreateAPIView):
         variant_id = request.data.get("variant")
         quantity = int(request.data.get("quantity", 1))
 
-        # Check stock
         from apps.products.models import Variant
         try:
             variant = Variant.objects.get(pk=variant_id, is_active=True)
@@ -49,7 +51,6 @@ class AddCartItemView(generics.CreateAPIView):
         if variant.stock < quantity:
             return Response({"error": "Stok tidak cukup."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # If item already in cart, increase quantity
         existing = CartItem.objects.filter(cart=cart, variant_id=variant_id).first()
         if existing:
             new_qty = existing.quantity + quantity
@@ -63,6 +64,7 @@ class AddCartItemView(generics.CreateAPIView):
         return Response(CartItemSerializer(item, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class CartItemDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = CartItemSerializer
     permission_classes = [permissions.AllowAny]
