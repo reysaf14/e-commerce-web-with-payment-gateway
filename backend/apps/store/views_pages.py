@@ -1,12 +1,13 @@
 """Web page views — renders Django templates for storefront."""
 
 from django.shortcuts import render, get_object_or_404
+from django.http import Http404
 from apps.store.models import StoreSettings
 from apps.products.models import Product, Category
+from apps.orders.models import Order
 
 
 def _get_store(slug=None):
-    """Get store by slug or return first store (for single-store dev mode)."""
     if slug:
         return get_object_or_404(StoreSettings, slug=slug)
     return StoreSettings.objects.first()
@@ -46,4 +47,32 @@ def product_detail_view(request, slug):
     return render(request, "store/product_detail.html", {
         "store": store,
         "product": product,
+    })
+
+
+def cart_view(request):
+    store = _get_store()
+    if not store:
+        return render(request, "store/empty_home.html")
+    return render(request, "store/cart.html", {"store": store})
+
+
+def checkout_view(request):
+    store = _get_store()
+    if not store:
+        return render(request, "store/empty_home.html")
+    return render(request, "store/checkout.html", {"store": store})
+
+
+def order_confirmation_view(request, order_number):
+    store = _get_store()
+    if not store:
+        return render(request, "store/empty_home.html")
+    try:
+        order = Order.objects.get(order_number=order_number, store=store)
+    except Order.DoesNotExist:
+        raise Http404("Pesanan tidak ditemukan.")
+    return render(request, "store/order_confirmation.html", {
+        "store": store,
+        "order": order,
     })
