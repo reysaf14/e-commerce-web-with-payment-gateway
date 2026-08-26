@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Checkout — {{ store.store_name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h2 class="section__title mb-6">Checkout</h2>
+
+    <div style="display:grid;grid-template-columns:1fr 380px;gap:var(--space-8);">
+      <!-- Form -->
+      <div>
+        <form id="checkout-form" onsubmit="submitCheckout(event)">
+          <div style="background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-clay);padding:var(--space-6);margin-bottom:var(--space-6);">
+            <h3 style="margin-bottom:var(--space-4);">📦 Informasi Pengiriman</h3>
+
+            <div style="margin-bottom:var(--space-4);">
+              <label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:var(--space-2);">Nama Lengkap *</label>
+              <input type="text" name="shipping_name" required
+                     style="width:100%;padding:var(--space-3);border:1px solid var(--bg-accent);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);"
+                     placeholder="Masukkan nama lengkap">
+            </div>
+
+            <div style="margin-bottom:var(--space-4);">
+              <label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:var(--space-2);">Nomor WhatsApp *</label>
+              <input type="tel" name="shipping_phone" required
+                     style="width:100%;padding:var(--space-3);border:1px solid var(--bg-accent);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);"
+                     placeholder="081234567890">
+            </div>
+
+            <div style="margin-bottom:var(--space-4);">
+              <label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:var(--space-2);">Alamat Lengkap *</label>
+              <textarea name="shipping_address" required rows="3"
+                        style="width:100%;padding:var(--space-3);border:1px solid var(--bg-accent);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);resize:vertical;"
+                        placeholder="Jalan, nomor, RT/RW, kelurahan, kecamatan"></textarea>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-4);">
+              <div>
+                <label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:var(--space-2);">Kota *</label>
+                <input type="text" name="shipping_city" required
+                       style="width:100%;padding:var(--space-3);border:1px solid var(--bg-accent);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);"
+                       placeholder="Jakarta Selatan">
+              </div>
+              <div>
+                <label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:var(--space-2);">Kode Pos</label>
+                <input type="text" name="shipping_postal_code"
+                       style="width:100%;padding:var(--space-3);border:1px solid var(--bg-accent);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);"
+                       placeholder="12345">
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:var(--space-2);">Catatan untuk Penjual</label>
+              <textarea name="note_to_seller" rows="2"
+                        style="width:100%;padding:var(--space-3);border:1px solid var(--bg-accent);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);resize:vertical;"
+                        placeholder="Warna favorit, ukuran, dll."></textarea>
+            </div>
+          </div>
+
+          <div id="checkout-error" class="hidden" style="background:var(--danger);color:white;padding:var(--space-4);border-radius:var(--radius-md);margin-bottom:var(--space-4);"></div>
+
+          <button type="submit" class="btn btn--primary btn--lg btn--full" id="submit-btn">
+            💳 Buat Pesanan
+          </button>
+        </form>
+      </div>
+
+      <!-- Order Summary -->
+      <div>
+        <div style="background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-clay);padding:var(--space-6);position:sticky;top:100px;">
+          <h3 style="margin-bottom:var(--space-4);">Ringkasan Pesanan</h3>
+          <div id="summary-items"></div>
+          <div style="border-top:2px solid var(--bg-accent);padding-top:var(--space-4);margin-top:var(--space-4);">
+            <div class="flex justify-between mb-2"><span class="text-muted">Subtotal</span><span id="sum-subtotal">Rp 0</span></div>
+            <div class="flex justify-between mb-2"><span class="text-muted">Ongkir</span><span id="sum-shipping">Rp 0</span></div>
+            <div class="flex justify-between" style="font-size:var(--text-lg);font-weight:700;"><span>Total</span><span id="sum-total" style="color:var(--accent-primary);">Rp 0</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let cartData = null;
+
+async function loadSummary() {
+  const res = await fetch("/api/v1/cart/");
+  cartData = await res.json();
+
+  if (!cartData.items || cartData.items.length === 0) {
+    window.location.href = "/cart/";
+    return;
+  }
+
+  document.getElementById("summary-items").innerHTML = cartData.items.map(item => `
+    <div class="flex justify-between items-center" style="padding:var(--space-2) 0;border-bottom:1px solid var(--bg-accent);">
+      <div style="flex:1;font-size:var(--text-sm);">
+        <div style="font-weight:500;">${item.product_name}</div>
+        <div class="text-muted">${item.variant_name} × ${item.quantity}</div>
+      </div>
+      <div style="font-weight:600;font-size:var(--text-sm);">Rp ${Number(item.line_total).toLocaleString("id-ID")}</div>
+    </div>
+  `).join("");
+
+  document.getElementById("sum-subtotal").textContent = "Rp " + Number(cartData.subtotal).toLocaleString("id-ID");
+  document.getElementById("sum-total").textContent = "Rp " + Number(cartData.subtotal).toLocaleString("id-ID");
+}
+
+async function submitCheckout(e) {
+  e.preventDefault();
+  const btn = document.getElementById("submit-btn");
+  const errDiv = document.getElementById("checkout-error");
+  btn.disabled = true;
+  btn.textContent = "Memproses...";
+  errDiv.classList.add("hidden");
+
+  const form = new FormData(e.target);
+  const data = Object.fromEntries(form);
+
+  try {
+    const res = await fetch("/api/v1/checkout/", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+
+    if (res.ok) {
+      window.location.href = `/order/${result.order_number}/`;
+    } else {
+      errDiv.textContent = result.detail || result.cart || result.stock || JSON.stringify(result);
+      errDiv.classList.remove("hidden");
+    }
+  } catch (err) {
+    errDiv.textContent = "Terjadi kesalahan. Coba lagi.";
+    errDiv.classList.remove("hidden");
+  }
+
+  btn.disabled = false;
+  btn.textContent = "💳 Buat Pesanan";
+}
+
+loadSummary();
+</script>
+{% endblock %}
