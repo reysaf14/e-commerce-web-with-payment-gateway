@@ -1,11 +1,5 @@
-"""Category URLs."""
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from . import views
+"""Category URLs — merged into products/urls.py via router."""
 
-router = DefaultRouter()
-router.register("", views.CategoryViewSet, basename="categories")
+from django.urls import path
 
-urlpatterns = [
-    path("", include(router.urls)),
-]
+urlpatterns = []
