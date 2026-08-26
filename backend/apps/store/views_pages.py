@@ -46,9 +46,17 @@ def product_detail_view(request, slug):
     if not store:
         return render(request, "store/empty_home.html")
     product = get_object_or_404(Product, store=store, slug=slug, is_active=True)
+
+    from django.db.models import Avg, Count
+    review_stats = product.reviews.aggregate(avg=Avg("rating"), count=Count("id"))
+    avg_rating = round(review_stats["avg"] or 0)
+    review_count = review_stats["count"]
+
     return render(request, "store/product_detail.html", {
         "store": store,
         "product": product,
+        "avg_rating": avg_rating,
+        "review_count": review_count,
     })
 
 
