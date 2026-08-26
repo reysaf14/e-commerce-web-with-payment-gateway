@@ -1,0 +1,24 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Login Dashboard{% endblock %}
+{% block dash_heading %}Masuk ke Dashboard{% endblock %}
+
+{% block dash_content %}
+<div class="dash-card" style="max-width:400px;margin:var(--space-8) auto;">
+  <form method="post" class="dash-form">
+    {% csrf_token %}
+    {% if form.errors %}
+    <div style="background:var(--danger);color:white;padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);margin-bottom:var(--space-4);font-size:var(--text-sm);">Email atau password salah.</div>
+    {% endif %}
+    <div class="dash-form__group">
+      <label class="dash-form__label">Email</label>
+      <input type="email" name="username" class="dash-form__input" required autofocus>
+    </div>
+    <div class="dash-form__group">
+      <label class="dash-form__label">Password</label>
+      <input type="password" name="password" class="dash-form__input" required>
+    </div>
+    <button type="submit" class="btn btn--primary btn--full btn--lg">Masuk</button>
+  </form>
+</div>
+{% endblock %}

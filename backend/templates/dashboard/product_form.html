@@ -1,0 +1,71 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}{% if product %}Edit Produk{% else %}Tambah Produk{% endif %}{% endblock %}
+{% block dash_heading %}{% if product %}Edit: {{ product.name }}{% else %}Tambah Produk Baru{% endif %}{% endblock %}
+
+{% block dash_content %}
+<div class="dash-card">
+  <form method="post" enctype="multipart/form-data" class="dash-form">
+    {% csrf_token %}
+
+    {% if form.errors %}
+    <div style="background:var(--danger);color:white;padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);margin-bottom:var(--space-4);font-size:var(--text-sm);">
+      {{ form.errors }}
+    </div>
+    {% endif %}
+
+    <div class="dash-form__group">
+      <label class="dash-form__label">Nama Produk *</label>
+      {{ form.name }}
+    </div>
+
+    <div class="dash-form__row">
+      <div class="dash-form__group">
+        <label class="dash-form__label">Kategori</label>
+        {{ form.category }}
+      </div>
+      <div class="dash-form__group">
+        <label class="dash-form__label">Harga (Rp) *</label>
+        {{ form.price }}
+      </div>
+    </div>
+
+    <div class="dash-form__group">
+      <label class="dash-form__label">Deskripsi</label>
+      {{ form.description }}
+    </div>
+
+    <div class="dash-form__row">
+      <div class="dash-form__group">
+        <label class="dash-form__label">Stok</label>
+        {{ form.stock }}
+      </div>
+      <div class="dash-form__group">
+        <label class="dash-form__label">SKU</label>
+        {{ form.sku }}
+      </div>
+    </div>
+
+    <div class="dash-form__group">
+      <label class="dash-form__label">Foto Produk</label>
+      {{ form.images }}
+      <p class="dash-form__hint">Maksimal 5MB per foto. Format: JPG, PNG, WebP.</p>
+    </div>
+
+    {% if product and product.images.all %}
+    <div class="image-preview" id="existing-images">
+      {% for img in product.images.all %}
+      <div class="image-preview__item">
+        <img src="{{ img.image_url.url }}" alt="">
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="margin-top:var(--space-6);display:flex;gap:var(--space-3);">
+      <button type="submit" class="btn btn--primary">💾 Simpan</button>
+      <a href="{% url 'dash-products' %}" class="btn btn--secondary">Batal</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Pesanan{% endblock %}
+{% block dash_heading %}Pesanan{% endblock %}
+
+{% block dash_content %}
+<div class="dash-card">
+  <div class="dash-card__header">
+    <h3 class="dash-card__title">Semua Pesanan</h3>
+  </div>
+  {% if orders %}
+  <table class="dash-table">
+    <thead>
+      <tr>
+        <th>Nomor</th>
+        <th>Pembeli</th>
+        <th>Telepon</th>
+        <th>Total</th>
+        <th>Pembayaran</th>
+        <th>Status</th>
+        <th>Tanggal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr style="cursor:pointer;" onclick="window.location='{% url 'dash-order-detail' order.order_number %}'">
+        <td><strong>{{ order.order_number }}</strong></td>
+        <td>{{ order.shipping_name }}</td>
+        <td>{{ order.shipping_phone }}</td>
+        <td>Rp {{ order.total_amount|floatformat:0 }}</td>
+        <td><span class="badge {% if order.payment_status == 'paid' %}badge--success{% elif order.payment_status == 'pending' %}badge--warning{% else %}badge--neutral{% endif %}">{{ order.get_payment_status_display }}</span></td>
+        <td><span class="badge {% if order.status == 'shipped' %}badge--info{% elif order.status == 'completed' %}badge--success{% else %}badge--neutral{% endif %}">{{ order.get_status_display }}</span></td>
+        <td>{{ order.created_at|date:"d M Y" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="padding:var(--space-4);">Belum ada pesanan.</p>
+  {% endif %}
+</div>
+{% endblock %}

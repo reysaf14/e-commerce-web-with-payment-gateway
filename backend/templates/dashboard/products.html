@@ -1,0 +1,40 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Produk{% endblock %}
+{% block dash_heading %}Produk{% endblock %}
+{% block dash_actions %}
+<a href="{% url 'dash-product-add' %}" class="btn btn--primary">+ Tambah Produk</a>
+{% endblock %}
+
+{% block dash_content %}
+<div class="dash-card">
+  {% if products %}
+  <table class="dash-table">
+    <thead>
+      <tr><th>Gambar</th><th>Nama</th><th>Kategori</th><th>Harga</th><th>Stok</th><th>Aksi</th></tr>
+    </thead>
+    <tbody>
+      {% for p in products %}
+      <tr>
+        <td>{% if p.thumbnail %}<img src="{{ p.thumbnail.image_url.url }}" style="width:48px;height:48px;object-fit:cover;border-radius:var(--radius-sm);">{% else %}<div style="width:48px;height:48px;background:var(--bg-accent);border-radius:var(--radius-sm);"></div>{% endif %}</td>
+        <td><strong>{{ p.name }}</strong><br><span class="text-muted" style="font-size:var(--text-xs);">{{ p.slug }}</span></td>
+        <td>{{ p.category.name|default:"-" }}</td>
+        <td>Rp {{ p.display_price|floatformat:0 }}</td>
+        <td>{% if p.in_stock %}{{ p.stock }}{% else %}<span style="color:var(--danger);">Habis</span>{% endif %}</td>
+        <td>
+          <a href="{% url 'dash-product-edit' p.id %}" class="btn btn--ghost btn--sm">✏️</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state__icon">👗</div>
+    <h3 class="empty-state__title">Belum ada produk</h3>
+    <p class="empty-state__desc">Mulai tambahkan produk pertama kamu!</p>
+    <a href="{% url 'dash-product-add' %}" class="btn btn--primary mt-4">+ Tambah Produk</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

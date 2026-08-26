@@ -1,0 +1,69 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Pesanan {{ order.order_number }}{% endblock %}
+{% block dash_heading %}Pesanan {{ order.order_number }}{% endblock %}
+
+{% block dash_content %}
+<div class="dash-card">
+  <h3 class="dash-card__title" style="margin-bottom:var(--space-4);">Detail Pesanan</h3>
+  <div class="dash-form__row mb-4">
+    <div><span class="text-muted">Pembeli:</span> <strong>{{ order.shipping_name }}</strong></div>
+    <div><span class="text-muted">Telepon:</span> {{ order.shipping_phone }}</div>
+  </div>
+  <div class="mb-4" style="font-size:var(--text-sm);color:var(--text-secondary);line-height:1.8;">
+    <strong>Alamat:</strong> {{ order.shipping_address }}, {{ order.shipping_city }} {{ order.shipping_postal_code }}
+  </div>
+
+  <table class="dash-table">
+    <thead><tr><th>Item</th><th>Harga</th><th>Qty</th><th>Subtotal</th></tr></thead>
+    <tbody>
+      {% for item in order.items.all %}
+      <tr>
+        <td>{{ item.product_name }} {% if item.variant_name %}({{ item.variant_name }}){% endif %}</td>
+        <td>Rp {{ item.unit_price|floatformat:0 }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>Rp {{ item.subtotal|floatformat:0 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div style="margin-top:var(--space-4);text-align:right;">
+    <div class="text-muted">Subtotal: Rp {{ order.subtotal|floatformat:0 }}</div>
+    <div class="text-muted">Ongkir: Rp {{ order.shipping_cost|floatformat:0 }}</div>
+    <div style="font-weight:700;font-size:var(--text-lg);">Total: Rp {{ order.total_amount|floatformat:0 }}</div>
+  </div>
+</div>
+
+<!-- Status Update -->
+<div class="dash-card">
+  <h3 class="dash-card__title" style="margin-bottom:var(--space-4);">Ubah Status</h3>
+  <div class="flex gap-4 items-center">
+    <div>
+      <span class="text-muted">Status saat ini:</span>
+      <span class="badge {% if order.status == 'processing' %}badge--warning{% elif order.status == 'shipped' %}badge--info{% elif order.status == 'completed' %}badge--success{% else %}badge--neutral{% endif %}" style="font-size:var(--text-sm);">{{ order.get_status_display }}</span>
+    </div>
+    <form method="post" action="{% url 'dash-order-update-status' order.order_number %}" style="display:flex;gap:var(--space-3);align-items:center;">
+      {% csrf_token %}
+      <select name="status" class="dash-form__select" style="width:auto;">
+        {% for value, label in status_choices %}
+        <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn--primary">Simpan</button>
+    </form>
+  </div>
+  {% if order.note_to_seller %}
+  <div style="margin-top:var(--space-4);padding:var(--space-3);background:var(--bg-accent);border-radius:var(--radius-md);font-size:var(--text-sm);">
+    <strong>Catatan pembeli:</strong> {{ order.note_to_seller }}
+  </div>
+  {% endif %}
+  {% if order.tracking_number %}
+  <div style="margin-top:var(--space-4);padding:var(--space-3);background:var(--bg-accent);border-radius:var(--radius-md);font-size:var(--text-sm);">
+    <strong>No. Resi:</strong> {{ order.tracking_number }}
+  </div>
+  {% endif %}
+</div>
+
+<a href="{% url 'dash-orders' %}" class="btn btn--secondary">← Kembali ke Pesanan</a>
+{% endblock %}

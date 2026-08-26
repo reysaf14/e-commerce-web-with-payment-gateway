@@ -1,0 +1,89 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Ringkasan{% endblock %}
+{% block dash_heading %}Ringkasan Toko{% endblock %}
+
+{% block dash_content %}
+<!-- Stats -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-card__icon">📦</div>
+    <div class="stat-card__label">Pesanan Hari Ini</div>
+    <div class="stat-card__value">{{ stats.orders_today }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon">⏳</div>
+    <div class="stat-card__label">Menunggu Bayar</div>
+    <div class="stat-card__value">{{ stats.pending_payment }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon">💰</div>
+    <div class="stat-card__label">Total Pendapatan</div>
+    <div class="stat-card__value">Rp {{ stats.total_revenue|floatformat:0 }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card__icon">👗</div>
+    <div class="stat-card__label">Total Produk</div>
+    <div class="stat-card__value">{{ stats.total_products }}</div>
+  </div>
+</div>
+
+<!-- Recent Orders -->
+<div class="dash-card">
+  <div class="dash-card__header">
+    <h3 class="dash-card__title">Pesanan Terbaru</h3>
+    <a href="{% url 'dash-orders' %}" class="btn btn--ghost btn--sm">Lihat Semua →</a>
+  </div>
+  {% if recent_orders %}
+  <table class="dash-table">
+    <thead>
+      <tr>
+        <th>Nomor Pesanan</th>
+        <th>Pembeli</th>
+        <th>Total</th>
+        <th>Status</th>
+        <th>Tanggal</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in recent_orders %}
+      <tr style="cursor:pointer;" onclick="window.location='{% url 'dash-order-detail' order.order_number %}'">
+        <td><strong>{{ order.order_number }}</strong></td>
+        <td>{{ order.shipping_name }}</td>
+        <td>Rp {{ order.total_amount|floatformat:0 }}</td>
+        <td>
+          <span class="badge {% if order.payment_status == 'paid' %}badge--success{% elif order.payment_status == 'pending' %}badge--warning{% else %}badge--neutral{% endif %}">
+            {{ order.get_payment_status_display }}
+          </span>
+        </td>
+        <td>{{ order.created_at|date:"d M Y, H:i" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="padding:var(--space-4);">Belum ada pesanan.</p>
+  {% endif %}
+</div>
+
+<!-- Top Products -->
+{% if top_products %}
+<div class="dash-card">
+  <div class="dash-card__header">
+    <h3 class="dash-card__title">Produk Terlaris</h3>
+  </div>
+  <table class="dash-table">
+    <thead><tr><th>Produk</th><th>Stok</th><th>Harga</th></tr></thead>
+    <tbody>
+      {% for p in top_products %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{% if p.in_stock %}{{ p.stock }}{% else %}<span style="color:var(--danger);">Habis</span>{% endif %}</td>
+        <td>Rp {{ p.display_price|floatformat:0 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

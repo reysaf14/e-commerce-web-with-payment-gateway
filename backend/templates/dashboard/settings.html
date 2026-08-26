@@ -1,0 +1,50 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Pengaturan{% endblock %}
+{% block dash_heading %}Pengaturan Toko{% endblock %}
+
+{% block dash_content %}
+<div class="dash-card">
+  <form method="post" class="dash-form">
+    {% csrf_token %}
+
+    {% if form.errors %}
+    <div style="background:var(--danger);color:white;padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);margin-bottom:var(--space-4);font-size:var(--text-sm);">{{ form.errors }}</div>
+    {% endif %}
+
+    <div class="dash-form__group">
+      <label class="dash-form__label">Nama Toko *</label>
+      {{ form.store_name }}
+    </div>
+
+    <div class="dash-form__group">
+      <label class="dash-form__label">Deskripsi Toko</label>
+      {{ form.description }}
+    </div>
+
+    <div class="dash-form__group">
+      <label class="dash-form__label">Biaya Pengiriman (Rp)</label>
+      {{ form.shipping_cost }}
+      <p class="dash-form__hint">Ongkir flat untuk semua pesanan.</p>
+    </div>
+
+    <div class="dash-form__row">
+      <div class="dash-form__group">
+        <label class="dash-form__label">WhatsApp</label>
+        {{ form.whatsapp_number }}
+      </div>
+      <div class="dash-form__group">
+        <label class="dash-form__label">Instagram</label>
+        {{ form.instagram_handle }}
+      </div>
+    </div>
+
+    <div class="dash-form__group">
+      <label class="dash-form__label">Email Kontak</label>
+      {{ form.email_contact }}
+    </div>
+
+    <button type="submit" class="btn btn--primary btn--lg" style="margin-top:var(--space-4);">💾 Simpan Pengaturan</button>
+  </form>
+</div>
+{% endblock %}

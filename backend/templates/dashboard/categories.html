@@ -1,0 +1,45 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Kategori{% endblock %}
+{% block dash_heading %}Kategori{% endblock %}
+
+{% block dash_content %}
+<!-- Add Category -->
+<div class="dash-card">
+  <h3 class="dash-card__title" style="margin-bottom:var(--space-4);">Tambah Kategori</h3>
+  <form method="post" class="dash-form" style="display:flex;gap:var(--space-3);align-items:flex-end;">
+    {% csrf_token %}
+    <div class="dash-form__group" style="flex:1;margin:0;">
+      <label class="dash-form__label">Nama Kategori</label>
+      <input type="text" name="name" class="dash-form__input" required placeholder="Contoh: Hijab, Gamis, Aksesoris">
+    </div>
+    <button type="submit" class="btn btn--primary" style="height:42px;">+ Tambah</button>
+  </form>
+</div>
+
+<!-- List -->
+<div class="dash-card">
+  {% if categories %}
+  <table class="dash-table">
+    <thead><tr><th>Nama</th><th>Slug</th><th>Jumlah Produk</th><th>Aksi</th></tr></thead>
+    <tbody>
+      {% for cat in categories %}
+      <tr>
+        <td><strong>{{ cat.name }}</strong></td>
+        <td class="text-muted">{{ cat.slug }}</td>
+        <td>{{ cat.product_count }}</td>
+        <td>
+          <form method="post" action="{% url 'dash-category-delete' cat.id %}" style="display:inline;" onsubmit="return confirm('Hapus kategori ini?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn--ghost btn--sm" style="color:var(--danger);">🗑️</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="padding:var(--space-4);">Belum ada kategori.</p>
+  {% endif %}
+</div>
+{% endblock %}
