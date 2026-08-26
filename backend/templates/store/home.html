@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ store.store_name }} — Beranda{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <h1 class="hero__title">{{ store.store_name }}</h1>
+    <p class="hero__subtitle">{{ store.description|default:"Koleksi fashion wanita terbaik untuk kamu." }}</p>
+    <a href="{% url 'store-catalog' %}" class="btn btn--primary btn--lg">Lihat Katalog</a>
+  </div>
+</section>
+
+<!-- Produk Unggulan -->
+{% if featured_products %}
+<section class="section">
+  <div class="container">
+    <h2 class="section__title">Produk Unggulan</h2>
+    <div class="product-grid" id="featured-products">
+      {% for product in featured_products %}
+      <a href="{% url 'store-product-detail' product.slug %}" class="product-card">
+        {% if product.thumbnail %}
+        <img src="{{ product.thumbnail.image_url.url }}" alt="{{ product.name }}" class="product-card__image">
+        {% else %}
+        <div class="product-card__image" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:var(--text-sm);">📷 Tidak ada foto</div>
+        {% endif %}
+        <div class="product-card__body">
+          {% if product.category %}
+          <div class="product-card__category">{{ product.category.name }}</div>
+          {% endif %}
+          <div class="product-card__name">{{ product.name }}</div>
+          <div class="product-card__price">Rp {{ product.display_price|floatformat:0 }}</div>
+          {% if not product.in_stock %}
+          <div class="product-card__stock product-card__stock--out">Stok habis</div>
+          {% endif %}
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+<!-- Semua Produk -->
+<section class="section" style="background: var(--bg-secondary);">
+  <div class="container">
+    <h2 class="section__title">Semua Produk</h2>
+    <div class="product-grid">
+      {% for product in products %}
+      <a href="{% url 'store-product-detail' product.slug %}" class="product-card">
+        {% if product.thumbnail %}
+        <img src="{{ product.thumbnail.image_url.url }}" alt="{{ product.name }}" class="product-card__image">
+        {% else %}
+        <div class="product-card__image" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:var(--text-sm);">📷 Tidak ada foto</div>
+        {% endif %}
+        <div class="product-card__body">
+          {% if product.category %}
+          <div class="product-card__category">{{ product.category.name }}</div>
+          {% endif %}
+          <div class="product-card__name">{{ product.name }}</div>
+          <div class="product-card__price">Rp {{ product.display_price|floatformat:0 }}</div>
+          {% if not product.in_stock %}
+          <div class="product-card__stock product-card__stock--out">Stok habis</div>
+          {% endif %}
+        </div>
+      </a>
+      {% empty %}
+      <div class="empty-state">
+        <div class="empty-state__icon">🛍️</div>
+        <h3 class="empty-state__title">Belum ada produk</h3>
+        <p class="empty-state__desc">Produk akan muncul di sini setelah ditambahkan oleh merchant.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

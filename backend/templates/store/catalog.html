@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Katalog — {{ store.store_name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <h2 class="section__title mb-6">Katalog Produk</h2>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-bar__chips" id="category-chips">
+        <button class="chip chip--active" onclick="filterCategory(null, this)">Semua</button>
+        {% for cat in categories %}
+        <button class="chip" onclick="filterCategory('{{ cat.id }}', this)">{{ cat.name }}</button>
+        {% endfor %}
+      </div>
+      <select class="select-field" onchange="sortProducts(this.value)" id="sort-select">
+        <option value="newest">Terbaru</option>
+        <option value="price_asc">Harga Terendah</option>
+        <option value="price_desc">Harga Tertinggi</option>
+        <option value="popular">Terlaris</option>
+      </select>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="product-grid" id="catalog-grid">
+      <div class="spinner" id="loading-spinner"></div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state hidden" id="empty-state">
+      <div class="empty-state__icon">🔍</div>
+      <h3 class="empty-state__title">Produk tidak ditemukan</h3>
+      <p class="empty-state__desc">Coba ubah filter atau pencarianmu.</p>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between mt-8" id="pagination">
+      <button class="btn btn--secondary" id="prev-btn" onclick="changePage(-1)" disabled>← Sebelumnya</button>
+      <span class="text-muted" id="page-info"></span>
+      <button class="btn btn--secondary" id="next-btn" onclick="changePage(1)" disabled>Selanjutnya →</button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const STORE_SLUG = "{{ store.slug }}";
+  let currentCategory = null;
+  let currentSort = "newest";
+  let currentPage = 1;
+
+  async function loadCatalog() {
+    const grid = document.getElementById("catalog-grid");
+    const emptyState = document.getElementById("empty-state");
+    const spinner = document.getElementById("loading-spinner");
+    grid.innerHTML = "";
+    spinner.classList.remove("hidden");
+    emptyState.classList.add("hidden");
+
+    let url = `/api/v1/catalog/${STORE_SLUG}/?sort=${currentSort}&page=${currentPage}`;
+    if (currentCategory) url += `&category=${currentCategory}`;
+
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      spinner.classList.add("hidden");
+      const products = data.results || data;
+
+      if (products.length === 0) {
+        emptyState.classList.remove("hidden");
+        document.getElementById("pagination").classList.add("hidden");
+        return;
+      }
+
+      grid.innerHTML = products.map(p => `
+        <a href="/${STORE_SLUG}/${p.slug}/" class="product-card">
+          ${p.thumbnail
+            ? `<img src="${p.thumbnail}" alt="${p.name}" class="product-card__image">`
+            : `<div class="product-card__image" style="display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:0.8rem;">📷 Tidak ada foto</div>`
+          }
+          <div class="product-card__body">
+            ${p.category_name ? `<div class="product-card__category">${p.category_name}</div>` : ""}
+            <div class="product-card__name">${p.name}</div>
+            <div class="product-card__price">Rp ${Number(p.price).toLocaleString("id-ID")}</div>
+            ${!p.in_stock ? `<div class="product-card__stock product-card__stock--out">Stok habis</div>` : ""}
+          </div>
+        </a>
+      `).join("");
+
+      // Pagination
+      const pageInfo = document.getElementById("page-info");
+      const prevBtn = document.getElementById("prev-btn");
+      const nextBtn = document.getElementById("next-btn");
+      if (data.count !== undefined) {
+        const totalPages = Math.ceil(data.count / 20);
+        pageInfo.textContent = `Halaman ${currentPage} dari ${totalPages}`;
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
+        document.getElementById("pagination").classList.remove("hidden");
+      } else {
+        document.getElementById("pagination").classList.add("hidden");
+      }
+    } catch (err) {
+      spinner.classList.add("hidden");
+      grid.innerHTML = `<p class="text-center text-muted" style="grid-column:1/-1;">Gagal memuat produk.</p>`;
+    }
+  }
+
+  function filterCategory(catId, el) {
+    currentCategory = catId;
+    currentPage = 1;
+    document.querySelectorAll(".chip").forEach(c => c.classList.remove("chip--active"));
+    el.classList.add("chip--active");
+    loadCatalog();
+  }
+
+  function sortProducts(val) {
+    currentSort = val;
+    currentPage = 1;
+    loadCatalog();
+  }
+
+  function changePage(delta) {
+    currentPage += delta;
+    loadCatalog();
+  }
+
+  loadCatalog();
+</script>
+{% endblock %}

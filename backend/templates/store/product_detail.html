@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ product.name }} — {{ store.store_name }}{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="container">
+    <div class="product-detail">
+      <!-- Gallery -->
+      <div class="product-detail__gallery">
+        <img id="main-image" class="product-detail__main-image"
+             src="{% if product.images.all %}{{ product.images.first.image_url.url }}{% else %}https://placehold.co/600x800/f5e6d8/6B6560?text=No+Image{% endif %}"
+             alt="{{ product.name }}">
+        {% if product.images.count > 1 %}
+        <div class="product-detail__thumbs">
+          {% for img in product.images.all %}
+          <img src="{{ img.image_url.url }}" alt="{{ img.alt_text|default:product.name }}"
+               class="product-detail__thumb {% if forloop.first %}product-detail__thumb--active{% endif %}"
+               onclick="changeImage(this, '{{ img.image_url.url }}')">
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Info -->
+      <div class="product-detail__info">
+        {% if product.category %}
+        <div class="product-detail__category">{{ product.category.name }}</div>
+        {% endif %}
+        <h1 class="product-detail__name">{{ product.name }}</h1>
+        <div class="product-detail__price">Rp {{ product.display_price|floatformat:0 }}</div>
+
+        {% if product.description %}
+        <p class="product-detail__description">{{ product.description }}</p>
+        {% endif %}
+
+        <!-- Variants -->
+        {% if product.variants.all %}
+        <div class="product-detail__variants">
+          <div class="product-detail__variants-title">Pilih Varian:</div>
+          <div class="variant-options" id="variant-options">
+            {% for variant in product.variants.all %}
+            <button class="variant-option {% if not variant.in_stock %}variant-option--disabled{% endif %}"
+                    data-variant-id="{{ variant.id }}"
+                    data-price="{{ variant.display_price }}"
+                    data-stock="{{ variant.stock }}"
+                    onclick="selectVariant(this, {{ variant.id }}, {{ variant.display_price }}, {{ variant.stock }})">
+              {{ variant.name }}
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Stock Info -->
+        <div class="mb-4" id="stock-info">
+          {% if product.in_stock %}
+          <span style="color: var(--success); font-size: var(--text-sm);">✓ Tersedia</span>
+          {% else %}
+          <span class="product-card__stock--out" style="font-size: var(--text-sm);">✗ Stok habis</span>
+          {% endif %}
+        </div>
+
+        <!-- Quantity -->
+        <div class="qty-selector">
+          <button class="qty-selector__btn" onclick="changeQty(-1)">−</button>
+          <span class="qty-selector__value" id="qty-value">1</span>
+          <button class="qty-selector__btn" onclick="changeQty(1)">+</button>
+        </div>
+
+        <!-- Add to Cart -->
+        <button class="btn btn--primary btn--lg btn--full" id="add-to-cart-btn"
+                onclick="addToCart({{ product.id }})"
+                {% if not product.in_stock %}disabled{% endif %}>
+          🛒 Tambah ke Keranjang
+        </button>
+
+        <!-- Back to catalog -->
+        <a href="{% url 'store-catalog' %}" class="btn btn--ghost btn--full mt-4">← Kembali ke Katalog</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  let selectedVariantId = null;
+  let selectedPrice = {{ product.display_price|floatformat:2 }};
+  let selectedStock = {% if product.in_stock %}1{% else %}0{% endif %};
+  let qty = 1;
+
+  function changeImage(thumb, src) {
+    document.getElementById("main-image").src = src;
+    document.querySelectorAll(".product-detail__thumb").forEach(t => t.classList.remove("product-detail__thumb--active"));
+    thumb.classList.add("product-detail__thumb--active");
+  }
+
+  function selectVariant(el, variantId, price, stock) {
+    if (el.classList.contains("variant-option--disabled")) return;
+    document.querySelectorAll(".variant-option").forEach(v => v.classList.remove("variant-option--active"));
+    el.classList.add("variant-option--active");
+    selectedVariantId = variantId;
+    selectedPrice = price;
+    selectedStock = stock;
+    document.getElementById("add-to-cart-btn").disabled = stock <= 0;
+    updateStockInfo(stock);
+  }
+
+  function changeQty(delta) {
+    qty = Math.max(1, Math.min(qty + delta, selectedStock));
+    document.getElementById("qty-value").textContent = qty;
+  }
+
+  function updateStockInfo(stock) {
+    const el = document.getElementById("stock-info");
+    if (stock > 0) {
+      el.innerHTML = `<span style="color:var(--success);font-size:var(--text-sm);">✓ ${stock} tersedia</span>`;
+    } else {
+      el.innerHTML = `<span class="product-card__stock--out" style="font-size:var(--text-sm);">✗ Stok habis</span>`;
+    }
+  }
+
+  async function addToCart(productId) {
+    if (!selectedVariantId && document.querySelectorAll(".variant-option").length > 0) {
+      alert("Pilih varian terlebih dahulu.");
+      return;
+    }
+    const btn = document.getElementById("add-to-cart-btn");
+    btn.disabled = true;
+    btn.textContent = "Menambahkan...";
+
+    try {
+      const res = await fetch("/api/v1/cart/items/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variant: selectedVariantId, quantity: qty })
+      });
+      if (res.ok) {
+        btn.textContent = "✓ Ditambahkan!";
+        setTimeout(() => {
+          btn.textContent = "🛒 Tambah ke Keranjang";
+          btn.disabled = false;
+        }, 1500);
+        // Update cart badge
+        updateCartBadge();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Gagal menambahkan ke keranjang.");
+        btn.textContent = "🛒 Tambah ke Keranjang";
+        btn.disabled = false;
+      }
+    } catch (e) {
+      alert("Terjadi kesalahan. Coba lagi.");
+      btn.textContent = "🛒 Tambah ke Keranjang";
+      btn.disabled = false;
+    }
+  }
+</script>
+{% endblock %}
