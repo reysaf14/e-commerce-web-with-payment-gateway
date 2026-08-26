@@ -30,6 +30,9 @@ urlpatterns = [
 
     # ── Web pages ─────────────────────────────────────────
     path("", include("apps.store.urls_pages")),
+
+    # ── Dashboard (merchant panel) ────────────────────────
+    path("dashboard/", include("apps.dashboard.urls")),
 ]
 
 # Serve media files in development
