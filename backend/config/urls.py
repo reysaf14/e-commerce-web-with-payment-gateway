@@ -12,11 +12,10 @@ urlpatterns = [
     # Admin (useful for dev & fallback dashboard)
     path("admin/", admin.site.urls),
 
-    # API v1
+    # ── API v1 (merchant — authenticated) ──────────────────
     path("api/v1/auth/", include("apps.authentication.urls")),
     path("api/v1/settings/", include("apps.store.urls")),
-    path("api/v1/products/", include("apps.products.urls")),
-    path("api/v1/categories/", include("apps.products.urls_categories")),
+    path("api/v1/products/", include("apps.products.urls")),  # includes categories + merchant products
     path("api/v1/cart/", include("apps.cart.urls")),
     path("api/v1/checkout/", include("apps.orders.urls_checkout")),
     path("api/v1/orders/", include("apps.orders.urls")),
@@ -24,10 +23,12 @@ urlpatterns = [
     path("api/v1/customers/", include("apps.customers.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
     path("api/v1/reviews/", include("apps.reviews.urls")),
-    path("api/v1/media/", include("apps.products.urls_media")),
-    path("api/v1/store/", include("apps.store.urls_public")),
 
-    # Web pages (storefront & merchant dashboard)
+    # ── API v1 (public — storefront) ──────────────────────
+    path("api/v1/store/", include("apps.store.urls_public")),
+    path("api/v1/catalog/<str:store_slug>/", include("apps.products.urls_catalog")),
+
+    # ── Web pages ─────────────────────────────────────────
     path("", include("apps.store.urls_pages")),
 ]
 
