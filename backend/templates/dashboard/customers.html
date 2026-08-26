@@ -1,0 +1,33 @@
+{% extends "dashboard/base.html" %}
+
+{% block dash_title %}Pelanggan{% endblock %}
+{% block dash_heading %}Pelanggan{% endblock %}
+
+{% block dash_content %}
+<div class="dash-card">
+  {% if customers %}
+  <table class="dash-table">
+    <thead>
+      <tr><th>Nama</th><th>Telepon</th><th>Kota</th><th>Pesanan</th><th>Total Belanja</th><th>Terakhir Order</th></tr>
+    </thead>
+    <tbody>
+      {% for c in customers %}
+      <tr>
+        <td><strong>{{ c.full_name }}</strong></td>
+        <td>{{ c.phone }}</td>
+        <td>{{ c.city|default:"-" }}</td>
+        <td>{{ c.order_count }}</td>
+        <td>Rp {{ c.total_spent|floatformat:0 }}</td>
+        <td>{% if c.last_order_at %}{{ c.last_order_at|date:"d M Y" }}{% else %}-{% endif %}</td>
+      </tr>
+      {% if c.notes %}
+      <tr><td colspan="6" style="font-size:var(--text-xs);color:var(--text-muted);padding-top:0;">📝 {{ c.notes }}</td></tr>
+      {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="text-muted" style="padding:var(--space-4);">Belum ada pelanggan.</p>
+  {% endif %}
+</div>
+{% endblock %}

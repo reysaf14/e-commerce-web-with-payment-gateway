@@ -29,6 +29,15 @@
         <div class="product-detail__category">{{ product.category.name }}</div>
         {% endif %}
         <h1 class="product-detail__name">{{ product.name }}</h1>
+
+        <!-- Rating -->
+        {% if avg_rating %}
+        <div style="margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2);">
+          <span style="color:var(--warning);font-size:1.2rem;">{% for i in "12345" %}{% if forloop.counter <= avg_rating %}★{% else %}☆{% endif %}{% endfor %}</span>
+          <span class="text-muted" style="font-size:var(--text-sm);">({{ review_count }} ulasan)</span>
+        </div>
+        {% endif %}
+
         <div class="product-detail__price">Rp {{ product.display_price|floatformat:0 }}</div>
 
         {% if product.description %}
@@ -69,16 +78,51 @@
           <button class="qty-selector__btn" onclick="changeQty(1)">+</button>
         </div>
 
-        <!-- Add to Cart -->
-        <button class="btn btn--primary btn--lg btn--full" id="add-to-cart-btn"
-                onclick="addToCart({{ product.id }})"
-                {% if not product.in_stock %}disabled{% endif %}>
-          🛒 Tambah ke Keranjang
-        </button>
+        <!-- Add to Cart + Wishlist -->
+        <div style="display:flex;gap:var(--space-3);">
+          <button class="btn btn--primary btn--lg" style="flex:2;" id="add-to-cart-btn"
+                  onclick="addToCart({{ product.id }})" {% if not product.in_stock %}disabled{% endif %}>
+            🛒 Tambah ke Keranjang
+          </button>
+          <button class="btn btn--secondary btn--lg" id="wishlist-btn" onclick="toggleWishlist({{ product.id }})" title="Wishlist">
+            <span id="wishlist-icon">🤍</span>
+          </button>
+        </div>
 
-        <!-- Back to catalog -->
         <a href="{% url 'store-catalog' %}" class="btn btn--ghost btn--full mt-4">← Kembali ke Katalog</a>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- Reviews Section -->
+<section class="section" style="background:var(--bg-secondary);">
+  <div class="container container--narrow">
+    <h2 class="section__title mb-6">Ulasan Produk</h2>
+
+    <!-- Review Form -->
+    <div style="background:var(--bg-card);border-radius:var(--radius-lg);box-shadow:var(--shadow-clay);padding:var(--space-6);margin-bottom:var(--space-6);">
+      <h4 style="margin-bottom:var(--space-4);">Tulis Ulasan</h4>
+      <div style="margin-bottom:var(--space-4);">
+        <label style="font-size:var(--text-sm);font-weight:600;display:block;margin-bottom:var(--space-2);">Rating</label>
+        <div id="rating-stars" style="font-size:1.5rem;cursor:pointer;">
+          <span onclick="setRating(1)">☆</span><span onclick="setRating(2)">☆</span><span onclick="setRating(3)">☆</span><span onclick="setRating(4)">☆</span><span onclick="setRating(5)">☆</span>
+        </div>
+      </div>
+      <div style="margin-bottom:var(--space-4);">
+        <textarea id="review-comment" class="dash-form__textarea" rows="3" placeholder="Ceritakan pengalamanmu..."></textarea>
+      </div>
+      <div style="margin-bottom:var(--space-4);">
+        <label style="font-size:var(--text-sm);display:flex;align-items:center;gap:var(--space-2);cursor:pointer;">
+          <input type="checkbox" id="review-anon"> Sembunyikan nama (anonim)
+        </label>
+      </div>
+      <button class="btn btn--primary" onclick="submitReview({{ product.id }})">Kirim Ulasan</button>
+    </div>
+
+    <!-- Reviews List -->
+    <div id="reviews-list">
+      <p class="text-muted text-center">Memuat ulasan...</p>
     </div>
   </div>
 </section>
@@ -86,9 +130,8 @@
 
 {% block extra_js %}
 <script>
+  // ── Variant / Cart ──
   let selectedVariantId = null;
-  let selectedPrice = {{ product.display_price|floatformat:2 }};
-  let selectedStock = {% if product.in_stock %}1{% else %}0{% endif %};
   let qty = 1;
 
   function changeImage(thumb, src) {
@@ -97,65 +140,80 @@
     thumb.classList.add("product-detail__thumb--active");
   }
 
-  function selectVariant(el, variantId, price, stock) {
+  function selectVariant(el, id, price, stock) {
     if (el.classList.contains("variant-option--disabled")) return;
     document.querySelectorAll(".variant-option").forEach(v => v.classList.remove("variant-option--active"));
     el.classList.add("variant-option--active");
-    selectedVariantId = variantId;
-    selectedPrice = price;
-    selectedStock = stock;
-    document.getElementById("add-to-cart-btn").disabled = stock <= 0;
-    updateStockInfo(stock);
+    selectedVariantId = id;
   }
 
-  function changeQty(delta) {
-    qty = Math.max(1, Math.min(qty + delta, selectedStock));
-    document.getElementById("qty-value").textContent = qty;
-  }
+  function changeQty(d) { qty = Math.max(1, qty + d); document.getElementById("qty-value").textContent = qty; }
 
-  function updateStockInfo(stock) {
-    const el = document.getElementById("stock-info");
-    if (stock > 0) {
-      el.innerHTML = `<span style="color:var(--success);font-size:var(--text-sm);">✓ ${stock} tersedia</span>`;
-    } else {
-      el.innerHTML = `<span class="product-card__stock--out" style="font-size:var(--text-sm);">✗ Stok habis</span>`;
-    }
-  }
-
-  async function addToCart(productId) {
-    if (!selectedVariantId && document.querySelectorAll(".variant-option").length > 0) {
-      alert("Pilih varian terlebih dahulu.");
-      return;
-    }
+  async function addToCart(pid) {
+    const variants = document.querySelectorAll(".variant-option");
+    if (variants.length > 0 && !selectedVariantId) { alert("Pilih varian terlebih dahulu."); return; }
     const btn = document.getElementById("add-to-cart-btn");
-    btn.disabled = true;
-    btn.textContent = "Menambahkan...";
-
-    try {
-      const res = await fetch("/api/v1/cart/items/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ variant: selectedVariantId, quantity: qty })
-      });
-      if (res.ok) {
-        btn.textContent = "✓ Ditambahkan!";
-        setTimeout(() => {
-          btn.textContent = "🛒 Tambah ke Keranjang";
-          btn.disabled = false;
-        }, 1500);
-        // Update cart badge
-        updateCartBadge();
-      } else {
-        const err = await res.json();
-        alert(err.error || "Gagal menambahkan ke keranjang.");
-        btn.textContent = "🛒 Tambah ke Keranjang";
-        btn.disabled = false;
-      }
-    } catch (e) {
-      alert("Terjadi kesalahan. Coba lagi.");
-      btn.textContent = "🛒 Tambah ke Keranjang";
-      btn.disabled = false;
-    }
+    btn.disabled = true; btn.textContent = "Menambahkan...";
+    const res = await fetch("/api/v1/cart/items/", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({variant: selectedVariantId, quantity: qty})
+    });
+    if (res.ok) { btn.textContent = "✓ Ditambahkan!"; setTimeout(() => { btn.textContent = "🛒 Tambah ke Keranjang"; btn.disabled = false; }, 1500); }
+    else { alert("Gagal menambahkan."); btn.textContent = "🛒 Tambah ke Keranjang"; btn.disabled = false; }
   }
+
+  // ── Wishlist ──
+  async function checkWishlist(pid) {
+    const res = await fetch(`/api/v1/reviews/wishlist/check/${pid}/`);
+    const data = await res.json();
+    document.getElementById("wishlist-icon").textContent = data.wishlisted ? "❤️" : "🤍";
+  }
+  async function toggleWishlist(pid) {
+    const res = await fetch("/api/v1/reviews/wishlist/toggle/", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({product: pid})
+    });
+    const data = await res.json();
+    document.getElementById("wishlist-icon").textContent = data.wishlisted ? "❤️" : "🤍";
+  }
+  checkWishlist({{ product.id }});
+
+  // ── Reviews ──
+  let currentRating = 0;
+  function setRating(r) {
+    currentRating = r;
+    const stars = document.getElementById("rating-stars").children;
+    for (let i = 0; i < 5; i++) stars[i].textContent = i < r ? "★" : "☆";
+  }
+
+  async function submitReview(pid) {
+    if (!currentRating) { alert("Pilih rating dulu."); return; }
+    const comment = document.getElementById("review-comment").value;
+    const is_anon = document.getElementById("review-anon").checked;
+    const res = await fetch(`/api/v1/reviews/${pid}/`, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({rating: currentRating, comment, is_anonymous: is_anon})
+    });
+    if (res.ok) { loadReviews(pid); document.getElementById("review-comment").value = ""; setRating(0); }
+    else { const err = await res.json(); alert(err.detail || JSON.stringify(err)); }
+  }
+
+  async function loadReviews(pid) {
+    const res = await fetch(`/api/v1/reviews/${pid}/`);
+    const reviews = await res.json();
+    const el = document.getElementById("reviews-list");
+    if (!reviews.length) { el.innerHTML = '<p class="text-muted text-center">Belum ada ulasan.</p>'; return; }
+    el.innerHTML = reviews.map(r => `
+      <div style="background:var(--bg-card);border-radius:var(--radius-md);box-shadow:var(--shadow-clay-sm);padding:var(--space-4);margin-bottom:var(--space-3);">
+        <div style="display:flex;justify-content:space-between;margin-bottom:var(--space-2);">
+          <strong style="font-size:var(--text-sm);">${r.display_name}</strong>
+          <span style="color:var(--warning);">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</span>
+        </div>
+        ${r.comment ? `<p style="font-size:var(--text-sm);color:var(--text-secondary);margin:0;">${r.comment}</p>` : ""}
+        <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:var(--space-2);">${new Date(r.created_at).toLocaleDateString("id-ID")}</div>
+      </div>
+    `).join("");
+  }
+  loadReviews({{ product.id }});
 </script>
 {% endblock %}
