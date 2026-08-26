@@ -2,9 +2,11 @@
 
 from django.shortcuts import render, get_object_or_404
 from django.http import Http404
+from django.conf import settings
 from apps.store.models import StoreSettings
 from apps.products.models import Product, Category
 from apps.orders.models import Order
+from apps.payments.models import Payment
 
 
 def _get_store(slug=None):
@@ -72,7 +74,20 @@ def order_confirmation_view(request, order_number):
         order = Order.objects.get(order_number=order_number, store=store)
     except Order.DoesNotExist:
         raise Http404("Pesanan tidak ditemukan.")
+
+    # Payment context
+    snap_url = (settings.MIDTRANS_SNAP_SANDBOX_URL
+                if not settings.MIDTRANS_IS_PRODUCTION
+                else settings.MIDTRANS_SNAP_URL)
+    snap_token = ""
+    if order.payment_status == "pending":
+        payment = Payment.objects.filter(order=order).order_by("-created_at").first()
+        if payment and payment.midtrans_token:
+            snap_token = payment.midtrans_token
+
     return render(request, "store/order_confirmation.html", {
         "store": store,
         "order": order,
+        "snap_url": snap_url,
+        "snap_token": snap_token,
     })
