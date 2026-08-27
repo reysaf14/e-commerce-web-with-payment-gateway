@@ -24,6 +24,7 @@ class Order(models.Model):
     store = models.ForeignKey("store.StoreSettings", on_delete=models.CASCADE, related_name="orders")
     customer = models.ForeignKey("customers.Customer", on_delete=models.CASCADE, related_name="orders")
     order_number = models.CharField(max_length=30, unique=True)
+    session_id = models.CharField(max_length=64, blank=True, null=True, help_text="Session cookie yang membuat order (ownership check)")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.WAITING_PAYMENT)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)

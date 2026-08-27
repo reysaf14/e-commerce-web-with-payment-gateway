@@ -42,6 +42,7 @@ def checkout_view(request):
         order = Order.objects.create(
             store=store, customer=customer, subtotal=subtotal,
             shipping_cost=shipping_cost, total_amount=total_amount,
+            session_id=request.session.session_key,
             shipping_name=serializer.validated_data["shipping_name"],
             shipping_phone=phone,
             shipping_address=serializer.validated_data["shipping_address"],
