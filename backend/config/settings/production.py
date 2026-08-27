@@ -3,8 +3,16 @@ Production settings — uses MySQL from .env.
 """
 
 from .base import *  # noqa: F401,F403
+from django.core.exceptions import ImproperlyConfigured
 
 DEBUG = False
+
+# ── Security guard: production MUST have real secrets ─────
+if not MIDTRANS_SERVER_KEY:
+    raise ImproperlyConfigured(
+        "MIDTRANS_SERVER_KEY wajib diisi di .env untuk production "
+        "(server key asli, bukan placeholder)."
+    )
 
 # ── Database: MySQL ────────────────────────────────────────
 DATABASES = {
@@ -28,6 +36,13 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = env("SECURE_SSL_REDIRECT", default=True)
+SECURE_HSTS_SECONDS = env("SECURE_HSTS_SECONDS", default=31536000)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_HTTPONLY = True
 
 # ── Email: SMTP ───────────────────────────────────────────
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

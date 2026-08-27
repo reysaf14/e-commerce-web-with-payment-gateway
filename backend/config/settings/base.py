@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
 
     # Local apps
@@ -130,8 +131,9 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/hour",
-        "user": "1000/hour",
+        "anon": "1000/hour",
+        "user": "10000/hour",
+        "login": "10/minute",
     },
 }
 
@@ -142,7 +144,7 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
-    "BLACKLIST_AFTER_ROTATION": False,
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
@@ -153,8 +155,8 @@ CORS_ALLOWED_ORIGINS = env.list(
 )
 
 # ── Midtrans ───────────────────────────────────────────────
-MIDTRANS_SERVER_KEY = env("MIDTRANS_SERVER_KEY", default="SB-Mid-server-dev-seed-key-for-unit-testing-only")
-MIDTRANS_CLIENT_KEY = env("MIDTRANS_CLIENT_KEY", default="SB-Mid-client-dev-seed-key")
+MIDTRANS_SERVER_KEY = env("MIDTRANS_SERVER_KEY", default="")
+MIDTRANS_CLIENT_KEY = env("MIDTRANS_CLIENT_KEY", default="")
 MIDTRANS_IS_PRODUCTION = env("MIDTRANS_IS_PRODUCTION", default=False)
 MIDTRANS_WEBHOOK_URL = env("MIDTRANS_WEBHOOK_URL", default="/api/v1/payments/webhook/")
 MIDTRANS_SNAP_URL = "https://app.midtrans.com/snap/snap.js"

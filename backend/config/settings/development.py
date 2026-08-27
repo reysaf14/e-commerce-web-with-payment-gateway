@@ -18,3 +18,8 @@ DATABASES = {
 
 # ── Email: console backend (prints to terminal) ───────────
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# ── Midtrans (dev only): seed key untuk pengujian lokal ───
+# Gunakan key sandbox asli dari .env kalau mau tes bayar nyata.
+MIDTRANS_SERVER_KEY = env("MIDTRANS_SERVER_KEY", default="dev-local-test-key-not-for-production")
+MIDTRANS_CLIENT_KEY = env("MIDTRANS_CLIENT_KEY", default="dev-local-client-key")
