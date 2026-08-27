@@ -4,6 +4,7 @@ Environment-specific overrides live in development.py / production.py.
 """
 
 import os
+import secrets
 from pathlib import Path
 import environ
 
@@ -22,7 +23,7 @@ if env_file.exists():
     env.read_env(str(env_file))
 
 # ── Core ───────────────────────────────────────────────────
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="CHANGE-ME-IN-PRODUCTION")
+SECRET_KEY = env("DJANGO_SECRET_KEY", default=secrets.token_urlsafe(50))
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
 # ── Apps ───────────────────────────────────────────────────
@@ -152,8 +153,8 @@ CORS_ALLOWED_ORIGINS = env.list(
 )
 
 # ── Midtrans ───────────────────────────────────────────────
-MIDTRANS_SERVER_KEY = env("MIDTRANS_SERVER_KEY", default="")
-MIDTRANS_CLIENT_KEY = env("MIDTRANS_CLIENT_KEY", default="")
+MIDTRANS_SERVER_KEY = env("MIDTRANS_SERVER_KEY", default="SB-Mid-server-dev-seed-key-for-unit-testing-only")
+MIDTRANS_CLIENT_KEY = env("MIDTRANS_CLIENT_KEY", default="SB-Mid-client-dev-seed-key")
 MIDTRANS_IS_PRODUCTION = env("MIDTRANS_IS_PRODUCTION", default=False)
 MIDTRANS_WEBHOOK_URL = env("MIDTRANS_WEBHOOK_URL", default="/api/v1/payments/webhook/")
 MIDTRANS_SNAP_URL = "https://app.midtrans.com/snap/snap.js"
