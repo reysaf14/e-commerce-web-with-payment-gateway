@@ -253,6 +253,151 @@ class WishlistTest(TestCase):
         self.assertTrue(res.json()["wishlisted"])
 
 
+class PaymentWebhookTest(TestCase):
+    """Test Midtrans webhook: signature verification + idempotency."""
+
+    def setUp(self):
+        self.client = Client()
+        _, self.store = _setup_user(self.client, "webhook@test.com")
+        self.product = Product.objects.create(
+            store=self.store, name="Hook Product", slug="hook-product", price=75000
+        )
+        self.variant = Variant.objects.create(
+            product=self.product, name="Reguler", stock=10
+        )
+        self.client.post("/api/v1/cart/items/", json.dumps({
+            "variant": self.variant.id, "quantity": 2
+        }), content_type="application/json")
+        res = self.client.post("/api/v1/checkout/", json.dumps({
+            "shipping_name": "Tono", "shipping_phone": "081111222333",
+            "shipping_address": "Jl. Merdeka 1", "shipping_city": "Bandung",
+        }), content_type="application/json")
+        self.order_number = res.json()["order_number"]
+
+    def _signed_payload(self, status_code="200", gross="150000", transaction_status="settlement", fraud_status="accept"):
+        """Build valid signed webhook payload."""
+        import hashlib
+        from django.conf import settings
+        server_key = settings.MIDTRANS_SERVER_KEY
+        sig = hashlib.sha512(
+            f"{self.order_number}{status_code}{gross}{server_key}".encode()
+        ).hexdigest()
+        return {
+            "order_id": self.order_number,
+            "status_code": status_code,
+            "gross_amount": gross,
+            "signature_key": sig,
+            "transaction_status": transaction_status,
+            "fraud_status": fraud_status,
+            "payment_type": "bank_transfer",
+        }
+
+    def test_webhook_rejects_bad_signature(self):
+        payload = self._signed_payload()
+        payload["signature_key"] = "wrongsignature"
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 403)
+        # Order must not be marked paid
+        from apps.orders.models import Order
+        order = Order.objects.get(order_number=self.order_number)
+        self.assertNotEqual(order.payment_status, "paid")
+
+    def test_webhook_settlement_marks_paid_and_reduces_stock(self):
+        payload = self._signed_payload()
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        from apps.orders.models import Order
+        order = Order.objects.get(order_number=self.order_number)
+        self.assertEqual(order.payment_status, "paid")
+        self.assertEqual(order.status, "processing")
+        # Stock reduced: 10 - 2 = 8
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 8)
+
+    def test_webhook_idempotent_duplicate_settlement(self):
+        payload = self._signed_payload()
+        # First webhook
+        res1 = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                                content_type="application/json")
+        self.assertEqual(res1.status_code, 200)
+        # Duplicate webhook (same settlement)
+        res2 = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                                content_type="application/json")
+        self.assertEqual(res2.status_code, 200)
+        # Stock must NOT be reduced twice: still 8
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 8)
+
+    def test_paid_order_cannot_be_downgraded_by_expire(self):
+        """QA REGRESSION: paid → expire must NOT change status."""
+        # Settle first
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(self._signed_payload()),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        # Now send expire
+        payload = self._signed_payload(status_code="201", transaction_status="expire", fraud_status="")
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        from apps.orders.models import Order
+        order = Order.objects.get(order_number=self.order_number)
+        # Order must REMAIN paid
+        self.assertEqual(order.payment_status, "paid")
+        self.assertEqual(order.status, "processing")
+        # Stock must NOT change
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 8)
+
+    def test_paid_order_cannot_be_downgraded_by_cancel(self):
+        """QA REGRESSION: paid → cancel must NOT change status."""
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(self._signed_payload()),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        payload = self._signed_payload(status_code="406", transaction_status="cancel", fraud_status="")
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        from apps.orders.models import Order
+        order = Order.objects.get(order_number=self.order_number)
+        self.assertEqual(order.payment_status, "paid")
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 8)
+
+    def test_settle_expire_settle_no_double_deduct(self):
+        """QA REGRESSION: settle → expire → settle = stock -2 total (not -4)."""
+        # 1st settlement
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(self._signed_payload()),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        # expire (ignored — paid is final)
+        payload = self._signed_payload(status_code="201", transaction_status="expire", fraud_status="")
+        self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                         content_type="application/json")
+        # 2nd settlement (duplicate)
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(self._signed_payload()),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        # Stock reduced exactly ONCE: 10 - 2 = 8
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 8)
+
+    def test_stock_restored_on_expire_unpaid_order(self):
+        """QA REGRESSION: unpaid order expires → stock restored."""
+        # No settlement — order still waiting_payment, stock intact
+        payload = self._signed_payload(status_code="201", transaction_status="expire", fraud_status="")
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                               content_type="application/json")
+        self.assertEqual(res.status_code, 200)
+        from apps.orders.models import Order
+        order = Order.objects.get(order_number=self.order_number)
+        self.assertEqual(order.payment_status, "failed")
+        # Stock unchanged (never deducted)
+        self.variant.refresh_from_db()
+        self.assertEqual(self.variant.stock, 10)
+
+
 class WebpageTest(TestCase):
     def setUp(self):
         self.client = Client()
