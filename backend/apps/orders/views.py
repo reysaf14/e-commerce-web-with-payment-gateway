@@ -75,6 +75,7 @@ def checkout_view(request):
 
     return Response({
         "order_number": order.order_number,
+        "access_token": order.access_token,
         "total_amount": str(order.total_amount),
         "status": order.status,
     }, status=status.HTTP_201_CREATED)

@@ -25,6 +25,10 @@ class Order(models.Model):
     customer = models.ForeignKey("customers.Customer", on_delete=models.CASCADE, related_name="orders")
     order_number = models.CharField(max_length=30, unique=True)
     session_id = models.CharField(max_length=64, blank=True, null=True, help_text="Session cookie yang membuat order (ownership check)")
+    access_token = models.CharField(
+        max_length=64, blank=True, null=True, db_index=True,
+        help_text="Token acak tak-tebakan (UUID) sbg kredensial akses order (anti-IDOR & anti-session-fixation)",
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.WAITING_PAYMENT)
     subtotal = models.DecimalField(max_digits=12, decimal_places=2)
     shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -60,6 +64,9 @@ class Order(models.Model):
     def save(self, *args, **kwargs):
         if not self.order_number:
             self.order_number = self._generate_order_number()
+        if not self.access_token:
+            import secrets
+            self.access_token = secrets.token_urlsafe(32)
         super().save(*args, **kwargs)
 
     def _generate_order_number(self):
