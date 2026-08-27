@@ -131,7 +131,7 @@ async function submitCheckout(e) {
     const result = await res.json();
 
     if (res.ok) {
-      window.location.href = `/order/${result.order_number}/`;
+      window.location.href = `/order/${result.order_number}/?token=${encodeURIComponent(result.access_token || '')}`;
     } else {
       errDiv.textContent = result.detail || result.cart || result.stock || JSON.stringify(result);
       errDiv.classList.remove("hidden");

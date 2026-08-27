@@ -67,8 +67,9 @@
 {% if order.payment_status == "pending" %}
 <script src="{{ snap_url }}"></script>
 <script>
-  const SNAP_TOKEN = "{{ snap_token|default:'' }}";
-  const ORDER_NUMBER = "{{ order.order_number }}";
+  const SNAP_TOKEN = "{{ snap_token|default:''|escapejs }}";
+  const ORDER_NUMBER = "{{ order.order_number|escapejs }}";
+  const ACCESS_TOKEN = "{{ access_token|default:''|escapejs }}";
 
   async function startPayment() {
     const btn = document.getElementById("pay-btn");
@@ -83,7 +84,7 @@
         const res = await fetch("/api/v1/payments/create/", {
           method: "POST",
           headers: {"Content-Type": "application/json"},
-          body: JSON.stringify({order_number: ORDER_NUMBER})
+          body: JSON.stringify({order_number: ORDER_NUMBER, access_token: ACCESS_TOKEN})
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Gagal membuat pembayaran");
@@ -123,7 +124,7 @@
     checkCount++;
     if (checkCount > 12) { clearInterval(checkInterval); return; }
     try {
-      const res = await fetch(`/api/v1/payments/${ORDER_NUMBER}/status/`);
+      const res = await fetch(`/api/v1/payments/${ORDER_NUMBER}/status/?token=${encodeURIComponent(ACCESS_TOKEN)}`);
       const data = await res.json();
       if (data.payment_status === "paid") {
         clearInterval(checkInterval);
