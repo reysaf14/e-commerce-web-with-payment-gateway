@@ -1,5 +1,11 @@
 # Docker Compose — MySQL only (untuk development)
 # Django backend jalan di luar container (pakai venv lokal)
+#
+# SECURITY (SK #7):
+#   - Password tidak di-hardcode; dibaca dari file .env (wajib ada).
+#   - Port MySQL di-bind hanya ke 127.0.0.1 (bukan 0.0.0.0).
+#   - phpMyAdmin dihapus (tidak perlu untuk dev Django; mengurangi
+#     permukaan serangan & tidak boleh di-production).
 
 version: "3.8"
 
@@ -8,13 +14,15 @@ services:
     image: mysql:8.0
     container_name: ecommerce_mysql
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: ecommerce_fashion
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Wajib isi MYSQL_ROOT_PASSWORD di .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ecommerce_fashion}
       MYSQL_CHARSET: utf8mb4
       MYSQL_COLLATION: utf8mb4_unicode_ci
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -22,19 +30,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: ecommerce_phpmyadmin
-    restart: unless-stopped
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-    ports:
-      - "8081:80"
-    depends_on:
-      mysql:
-        condition: service_healthy
 
 volumes:
   mysql_data:
