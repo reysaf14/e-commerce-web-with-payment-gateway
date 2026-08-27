@@ -1,12 +1,10 @@
 """Payment views — create payment + webhook handler."""
 
 import hashlib
-import json
 from django.conf import settings
 from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
@@ -16,6 +14,53 @@ from apps.notifications.services import create_notification
 from .models import Payment
 from .serializers import PaymentSerializer
 from . import services as midtrans_service
+
+
+# ── Stock helpers ─────────────────────────────────────────
+# Lock rows with select_for_update() to prevent race conditions
+# on concurrent webhook delivery (architecture §6.9).
+
+def _deduct_stock(order):
+    """Reduce variant stock by order quantity (called once per paid order)."""
+    for item in order.items.select_related("variant"):
+        variant = item.variant
+        if not variant:
+            continue
+        variant = Variant.objects.select_for_update().get(pk=variant.pk)
+        variant.stock = max(0, variant.stock - item.quantity)
+        variant.save(update_fields=["stock"])
+
+
+def _restore_stock(order):
+    """Return stock when an order is cancelled/expired/denied."""
+    for item in order.items.select_related("variant"):
+        variant = item.variant
+        if not variant:
+            continue
+        variant = Variant.objects.select_for_update().get(pk=variant.pk)
+        variant.stock = variant.stock + item.quantity
+        variant.save(update_fields=["stock"])
+
+
+def _stock_was_deducted(order):
+    """True if a successful payment already deducted stock for this order."""
+    return Payment.objects.filter(
+        order=order,
+        status__in=["settlement", "capture"],
+        paid_at__isnull=False,
+    ).exists()
+
+
+# ── Ownership check ───────────────────────────────────────
+# Order ownership is tracked via session cookie (order created from
+# the same browser session). Webhook is exempt (signature-verified).
+
+def _has_order_access(request, order):
+    """Return True if request session owns the order."""
+    if not order.session_id:
+        # Legacy orders without session — allow (backward compat)
+        return True
+    return bool(request.session.session_key) and request.session.session_key == order.session_id
 
 
 @csrf_exempt
@@ -30,6 +75,10 @@ def create_payment(request):
     try:
         order = Order.objects.get(order_number=order_number)
     except Order.DoesNotExist:
+        return Response({"error": "Pesanan tidak ditemukan."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Ownership: only the session that created the order may pay it
+    if not _has_order_access(request, order):
         return Response({"error": "Pesanan tidak ditemukan."}, status=status.HTTP_404_NOT_FOUND)
 
     if order.payment_status == "paid":
@@ -65,7 +114,6 @@ def create_payment(request):
         # Save payment record
         payment = Payment.objects.create(
             order=order,
-            store=order.store,
             midtrans_order_id=order.order_number,
             midtrans_token=result["token"],
             midtrans_redirect_url=result["redirect_url"],
@@ -89,7 +137,12 @@ def create_payment(request):
 def webhook_view(request):
     """Midtrans server-to-server webhook handler.
 
-    Receives payment notification and updates order status.
+    State machine rules:
+    - A paid order is FINAL: no later webhook (pending/expire/cancel/
+      deny/duplicate settlement) may change its status or stock.
+    - Stock is deducted once on settlement/capture(accept).
+    - Stock is restored when an unpaid order is cancelled/expired/denied
+      (only if it was ever deducted).
     """
     # Verify signature
     notification = request.data
@@ -112,20 +165,30 @@ def webhook_view(request):
 
     with transaction.atomic():
         try:
-            order = Order.objects.get(order_number=order_id)
+            # Lock the order row to serialize concurrent webhooks
+            order = Order.objects.select_for_update().get(order_number=order_id)
         except Order.DoesNotExist:
             return JsonResponse({"status": "error", "message": "Order not found"}, status=404)
+
+        # ════════════════════════════════════════════════════
+        # GUARD — FINAL STATE: paid orders are immutable.
+        # Prevents downgrade to failed/pending/cancelled AND
+        # prevents double stock deduction (idempotency for ALL
+        # subsequent statuses, not just capture/settlement).
+        # ════════════════════════════════════════════════════
+        if order.payment_status == "paid":
+            return JsonResponse({"status": "ok", "message": "Already processed"})
+
+        # Was stock deducted for this order by an earlier success?
+        stock_deducted = _stock_was_deducted(order)
 
         # Map Midtrans status to our status
         if transaction_status == "capture":
             if fraud_status == "accept":
                 order.payment_status = "paid"
                 order.status = "processing"
-                # Reduce stock
-                for item in order.items.select_related("variant"):
-                    variant = item.variant
-                    variant.stock = max(0, variant.stock - item.quantity)
-                    variant.save()
+                order.payment_method = payment_type or order.payment_method
+                _deduct_stock(order)
             elif fraud_status == "challenge":
                 order.payment_status = "challenge"
             else:
@@ -134,19 +197,23 @@ def webhook_view(request):
         elif transaction_status == "settlement":
             order.payment_status = "paid"
             order.status = "processing"
-            for item in order.items.select_related("variant"):
-                variant = item.variant
-                variant.stock = max(0, variant.stock - item.quantity)
-                variant.save()
+            order.payment_method = payment_type or order.payment_method
+            _deduct_stock(order)
 
         elif transaction_status == "pending":
+            # Still waiting — only meaningful if never paid
             order.payment_status = "pending"
 
         elif transaction_status in ("deny", "expire"):
             order.payment_status = "failed"
+            # Restore stock if it was deducted earlier (defensive)
+            if stock_deducted:
+                _restore_stock(order)
 
         elif transaction_status == "cancel":
             order.payment_status = "cancelled"
+            if stock_deducted:
+                _restore_stock(order)
 
         order.save()
 
@@ -154,7 +221,6 @@ def webhook_view(request):
         payment, _ = Payment.objects.get_or_create(
             order=order,
             defaults={
-                "store": order.store,
                 "midtrans_order_id": order_id,
                 "amount": gross_amount,
             }
@@ -188,6 +254,10 @@ def payment_status_view(request, order_number):
     try:
         order = Order.objects.get(order_number=order_number)
     except Order.DoesNotExist:
+        return Response({"error": "Pesanan tidak ditemukan."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Ownership: only the session that created the order may view it
+    if not _has_order_access(request, order):
         return Response({"error": "Pesanan tidak ditemukan."}, status=status.HTTP_404_NOT_FOUND)
 
     payment = Payment.objects.filter(order=order).order_by("-created_at").first()
