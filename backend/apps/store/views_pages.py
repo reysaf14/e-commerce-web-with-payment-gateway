@@ -1,5 +1,6 @@
 """Web page views — renders Django templates for storefront."""
 
+import hmac
 from django.shortcuts import render, get_object_or_404
 from django.http import Http404
 from django.conf import settings
@@ -84,6 +85,14 @@ def order_confirmation_view(request, order_number):
     except Order.DoesNotExist:
         raise Http404("Pesanan tidak ditemukan.")
 
+    # 🔐 OWNERSHIP CHECK — halaman konfirmasi berisi PII pembeli
+    # (nama, telepon, alamat) + snap_token. Hanya pemilik order yg
+    # punya access_token (SK √2). Bukan pemilik => 404 (tidak
+    # membocorkan keberadaan order).
+    supplied = request.GET.get("token", "")
+    if not order.access_token or not supplied or not hmac.compare_digest(supplied, order.access_token):
+        raise Http404("Pesanan tidak ditemukan.")
+
     # Payment context
     snap_url = (settings.MIDTRANS_SNAP_SANDBOX_URL
                 if not settings.MIDTRANS_IS_PRODUCTION
@@ -99,4 +108,5 @@ def order_confirmation_view(request, order_number):
         "order": order,
         "snap_url": snap_url,
         "snap_token": snap_token,
+        "access_token": order.access_token,
     })

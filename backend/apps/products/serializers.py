@@ -67,9 +67,18 @@ class ProductImageSerializer(serializers.ModelSerializer):
         max_size_mb = 5
         if value.size > max_size_mb * 1024 * 1024:
             raise serializers.ValidationError(f"Ukuran gambar maksimal {max_size_mb}MB.")
-        allowed_types = ["image/jpeg", "image/png", "image/webp"]
-        if hasattr(value, "content_type") and value.content_type not in allowed_types:
-            raise serializers.ValidationError("Format gambar harus JPEG, PNG, atau WebP.")
+        # Verifikasi isi file (magic bytes) via Pillow — jangan hanya
+        # percaya content_type (bisa dipalsukan). Anti-upload berbahaya (SK √6).
+        from PIL import Image
+        try:
+            value.file.seek(0)
+            img = Image.open(value.file)
+            img.verify()  # verifikasi struktur file, bukan hanya header
+            value.file.seek(0)
+            if img.format not in ("JPEG", "PNG", "WEBP"):
+                raise serializers.ValidationError("Format gambar harus JPEG, PNG, atau WebP.")
+        except Exception:
+            raise serializers.ValidationError("File tidak valid sebagai gambar.")
         return value
 
 

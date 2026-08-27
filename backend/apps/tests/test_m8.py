@@ -432,3 +432,88 @@ class WebpageTest(TestCase):
         self.client.force_login(self.user)
         res = self.client.get("/dashboard/")
         self.assertEqual(res.status_code, 200)
+
+
+class SecurityRegressionTest(TestCase):
+    """Security audit fixes — IDOR, amount tampering, ownership token."""
+
+    def setUp(self):
+        self.client = Client()
+        _, self.store = _setup_user(self.client, "sec@test.com")
+        self.product = Product.objects.create(
+            store=self.store, name="Sec Product", slug="sec-product", price=90000
+        )
+        self.variant = Variant.objects.create(
+            product=self.product, name="Reguler", stock=10
+        )
+        self.client.post("/api/v1/cart/items/", json.dumps({
+            "variant": self.variant.id, "quantity": 1
+        }), content_type="application/json")
+        res = self.client.post("/api/v1/checkout/", json.dumps({
+            "shipping_name": "Siti Korban", "shipping_phone": "081299998888",
+            "shipping_address": "Jl. Rahasia No 9", "shipping_city": "Bandung",
+        }), content_type="application/json")
+        self.order_number = res.json()["order_number"]
+        self.access_token = res.json()["access_token"]
+        from apps.orders.models import Order
+        self.order = Order.objects.get(order_number=self.order_number)
+
+    def _signed_payload(self, gross="90000", transaction_status="settlement", status_code="200"):
+        """Build valid signed webhook payload for amount-tampering test."""
+        import hashlib
+        from django.conf import settings
+        server_key = settings.MIDTRANS_SERVER_KEY
+        sig = hashlib.sha512(
+            f"{self.order_number}{status_code}{gross}{server_key}".encode()
+        ).hexdigest()
+        return {
+            "order_id": self.order_number, "status_code": status_code,
+            "gross_amount": gross, "signature_key": sig,
+            "transaction_status": transaction_status, "fraud_status": "accept",
+            "payment_type": "bank_transfer",
+        }
+
+    def test_amount_tampering_rejected(self):
+        """SK #4 — bayar Rp 100 utk order Rp 90.000 harus DITOLAK."""
+        payload = self._signed_payload(gross="100")
+        res = self.client.post("/api/v1/payments/webhook/", json.dumps(payload),
+                               content_type="application/json")
+        # Amount mismatch utk capture/settlement => 400
+        self.assertEqual(res.status_code, 400)
+        self.order.refresh_from_db()
+        self.assertNotEqual(self.order.payment_status, "paid")
+
+    def test_order_confirmation_IDOR_blocked_without_token(self):
+        """SK #2 — akses halaman order tanpa access_token => 404 (PII aman)."""
+        # Tanpa token
+        res = self.client.get(f"/order/{self.order_number}/")
+        self.assertEqual(res.status_code, 404)
+        # Token salah
+        res = self.client.get(f"/order/{self.order_number}/?token=wrongtoken")
+        self.assertEqual(res.status_code, 404)
+
+    def test_order_confirmation_with_valid_token(self):
+        """SK #2 — pemilik dgn token valid bisa lihat halaman konfirmasi."""
+        res = self.client.get(f"/order/{self.order_number}/?token={self.access_token}")
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Siti Korban")
+
+    def test_payment_status_requires_token(self):
+        """SK #3 — endpoint status tanpa access_token => 404."""
+        res = self.client.get(f"/api/v1/payments/{self.order_number}/status/")
+        self.assertEqual(res.status_code, 404)
+        res = self.client.get(
+            f"/api/v1/payments/{self.order_number}/status/?token={self.access_token}")
+        self.assertEqual(res.status_code, 200)
+
+    def test_create_payment_requires_token(self):
+        """SK #3 — create payment tanpa access_token => 404."""
+        res = self.client.post("/api/v1/payments/create/", json.dumps({
+            "order_number": self.order_number
+        }), content_type="application/json")
+        self.assertEqual(res.status_code, 404)
+
+    def test_access_token_not_guessable(self):
+        """SK #3 — access_token acak & panjang (bukan sequential)."""
+        self.assertIsNotNone(self.order.access_token)
+        self.assertGreaterEqual(len(self.order.access_token), 30)

@@ -52,15 +52,22 @@ def _stock_was_deducted(order):
 
 
 # ── Ownership check ───────────────────────────────────────
-# Order ownership is tracked via session cookie (order created from
-# the same browser session). Webhook is exempt (signature-verified).
+# Ownership dibangun di atas access_token acak (UUID) yang
+# di-generate server — BUKAN session key (anti-session-fixation,
+# SK √3). Token ini kredensial tak-tebakan utk akses order.
+
 
 def _has_order_access(request, order):
-    """Return True if request session owns the order."""
-    if not order.session_id:
-        # Legacy orders without session — allow (backward compat)
-        return True
-    return bool(request.session.session_key) and request.session.session_key == order.session_id
+    """Return True jika request membawa access_token order yg benar."""
+    token = request.GET.get("token") or request.data.get("access_token")
+    if not order.access_token:
+        # Order legacy tanpa token — tolak utk keamanan, data sensitif
+        return False
+    if not token:
+        return False
+    # constant-time compare
+    import hmac
+    return hmac.compare_digest(token, order.access_token)
 
 
 @csrf_exempt
@@ -169,6 +176,24 @@ def webhook_view(request):
             order = Order.objects.select_for_update().get(order_number=order_id)
         except Order.DoesNotExist:
             return JsonResponse({"status": "error", "message": "Order not found"}, status=404)
+
+        # ════════════════════════════════════════════════════
+        # AMOUNT TAMPERING GUARD — gross_amount payload harus
+        # SAMA dengan total_amount order. Cegah "bayar Rp 100
+        # untuk order Rp 55.000" (SK √4).
+        # ════════════════════════════════════════════════════
+        from decimal import Decimal, InvalidOperation
+        try:
+            payload_amount = Decimal(str(gross_amount))
+        except (InvalidOperation, TypeError, ValueError):
+            payload_amount = None
+        if payload_amount is None or payload_amount != order.total_amount:
+            # Jangan pernah mark paid dengan amount tidak cocok
+            if transaction_status in ("capture", "settlement"):
+                return JsonResponse({
+                    "status": "error",
+                    "message": "Amount mismatch",
+                }, status=400)
 
         # ════════════════════════════════════════════════════
         # GUARD — FINAL STATE: paid orders are immutable.
