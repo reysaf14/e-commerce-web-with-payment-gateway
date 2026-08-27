@@ -56,7 +56,7 @@ def overview(request):
     }
 
     recent_orders = Order.objects.filter(store=store).order_by("-created_at")[:10]
-    top_products = Product.objects.filter(store=store, is_active=True).order_by("-stock")[:5]
+    top_products = Product.objects.filter(store=store, is_active=True).order_by("-total_sold")[:5]
 
     return render(request, "dashboard/overview.html", {
         "store": store, "active": "overview",
