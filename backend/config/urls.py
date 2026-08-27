@@ -28,11 +28,11 @@ urlpatterns = [
     path("api/v1/store/", include("apps.store.urls_public")),
     path("api/v1/catalog/<str:store_slug>/", include("apps.products.urls_catalog")),
 
-    # ── Web pages ─────────────────────────────────────────
-    path("", include("apps.store.urls_pages")),
-
     # ── Dashboard (merchant panel) ────────────────────────
     path("dashboard/", include("apps.dashboard.urls")),
+
+    # ── Web pages ─────────────────────────────────────────
+    path("", include("apps.store.urls_pages")),
 ]
 
 # Serve media files in development
